@@ -1,0 +1,27 @@
+# ninja log v7
+42	3542	7976518190504840	CMakeFiles/locus_client.dir/src/io/msg_io.c.obj	baa65201510f0727
+26	3546	7976518190338504	CMakeFiles/locus_server.dir/main/server/server.c.obj	9501600926bcb0f4
+31	3547	7976518190392030	CMakeFiles/locus_server.dir/src/io/msg_io.c.obj	c42d021b74786fb3
+38	3548	7976518190455457	CMakeFiles/locus_client.dir/main/client/client.c.obj	f17ad5cd288ddce3
+48	3556	7976518190554906	CMakeFiles/locus_client.dir/src/client/client.c.obj	a78ddbc674d9dc37
+35	3569	7976518190422032	CMakeFiles/locus_server.dir/src/server/server.c.obj	34912306acb4cef7
+58	3574	7976518190656325	CMakeFiles/locus_client.dir/src/client/rendering/render.c.obj	c24e536f9513241d
+30	191	7976518524584437	locus_server.exe	61829ed1db85d0c7
+25	657	7976518524527469	CMakeFiles/locus_client.dir/src/client/input/input.c.obj	784ac25ce7ba8c6e
+657	756	7976518530858388	locus_client.exe	53f0ccb8bfdfc70b
+39	469	7976533994537125	build.ninja	8b513d3c2236003a
+39	469	7976533994537125	C:/Users/clint/locus/build/cmake_install.cmake	8b513d3c2236003a
+54	3567	7976533995421283	CMakeFiles/locus_client.dir/src/io/msg_io.c.obj	baa65201510f0727
+41	3568	7976533995288722	CMakeFiles/locus_server.dir/src/io/msg_io.c.obj	c42d021b74786fb3
+48	3569	7976533995358743	CMakeFiles/locus_client.dir/main/client/client.c.obj	f17ad5cd288ddce3
+62	3570	7976533995505048	CMakeFiles/locus_client.dir/src/client/input/input.c.obj	784ac25ce7ba8c6e
+58	3571	7976533995464955	CMakeFiles/locus_client.dir/src/client/client.c.obj	a78ddbc674d9dc37
+37	3571	7976533995248732	CMakeFiles/locus_server.dir/main/server/server.c.obj	9501600926bcb0f4
+66	3572	7976533995545028	CMakeFiles/locus_client.dir/src/client/rendering/render.c.obj	c24e536f9513241d
+45	3579	7976533995328739	CMakeFiles/locus_server.dir/src/server/server.c.obj	34912306acb4cef7
+3579	3782	7976534030668542	locus_server.exe	61829ed1db85d0c7
+3572	3784	7976534030593782	locus_client.exe	53f0ccb8bfdfc70b
+20	546	7976534309790795	CMakeFiles/locus_client.dir/main/client/client.c.obj	f17ad5cd288ddce3
+547	642	7976534315060283	locus_client.exe	53f0ccb8bfdfc70b
+20	558	7976534504310379	CMakeFiles/locus_client.dir/main/client/client.c.obj	f17ad5cd288ddce3
+559	653	7976534509703307	locus_client.exe	53f0ccb8bfdfc70b

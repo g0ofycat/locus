@@ -1,0 +1,4 @@
+C:/Users/clint/locus/build/CMakeFiles/locus_server.dir
+C:/Users/clint/locus/build/CMakeFiles/locus_client.dir
+C:/Users/clint/locus/build/CMakeFiles/edit_cache.dir
+C:/Users/clint/locus/build/CMakeFiles/rebuild_cache.dir

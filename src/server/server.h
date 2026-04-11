@@ -19,10 +19,10 @@
 //--============
 
 typedef struct {
-	SOCKET  sock;
-	char    username[MAX_USERNAME];
-	char    session_id[MAX_SESSION_ID];
-	int     joined;	// (0, 1)
+	SOCKET sock;
+	char username[MAX_USERNAME];
+	char session_id[MAX_SESSION_ID];
+	int joined;	// (0, 1)
 } server_client_t;
 
 //--============

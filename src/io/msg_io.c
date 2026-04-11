@@ -55,10 +55,10 @@ msg_status_t msg_send(SOCKET sock, uint8_t type, uint8_t flags, const void *payl
 	uint8_t buf[HEADER_SIZE + MAX_PAYLOAD];
 	msg_t *msg = (msg_t *)buf;
 
-	msg->type      = type;
-	msg->flags     = flags;
-	msg->len       = htons(len);
-	msg->seq       = 0;
+	msg->type = type;
+	msg->flags = flags;
+	msg->len = htons(len);
+	msg->seq = 0;
 	msg->timestamp = 0;
 
 	if (len > 0)

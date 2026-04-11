@@ -9,8 +9,8 @@
 //--============
 
 typedef enum {
-	MSG_OK        =  0,
-	MSG_ERR_IO    = -1,  // MSG_ERR_IO: disconnect or socket error
+	MSG_OK = 0,
+	MSG_ERR_IO = -1,  // MSG_ERR_IO: disconnect or socket error
 	MSG_ERR_FRAME = -2,  // MSG_ERR_FRAME: malformed frame / oversized payload
 } msg_status_t;
 
