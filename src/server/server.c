@@ -11,7 +11,7 @@
 // -- PRIVATE STATE
 //--================
 
-static client_t clients[MAX_CLIENTS];
+static server_client_t clients[MAX_CLIENTS];
 static struct pollfd pfds[MAX_CLIENTS + 1]; // + 1 = listener
 static int nfds = 1;						// pfds[0] = listener
 
@@ -47,7 +47,7 @@ static int username_taken(const char *username)
 
 // @brief Get client based on the socket
 /// @param sock
-static client_t *client_by_sock(SOCKET sock)
+static server_client_t *client_by_sock(SOCKET sock)
 {
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
@@ -91,7 +91,7 @@ int client_add(SOCKET sock)
 /// @brief Remove a client by socket, broadcasts MSG_LEAVE to others
 void client_remove(SOCKET sock)
 {
-	client_t *c = client_by_sock(sock);
+	server_client_t *c = client_by_sock(sock);
 	if (c == NULL)
 		return;
 
@@ -103,7 +103,7 @@ void client_remove(SOCKET sock)
 	}
 
 	closesocket(sock);
-	memset(c, 0, sizeof(client_t));
+	memset(c, 0, sizeof(server_client_t));
 	c->sock = INVALID_SOCKET;
 
 	for (int i = 1; i < nfds; i++)
@@ -139,7 +139,7 @@ void broadcast(SOCKET sender_sock, uint8_t type, const void *payload, uint16_t l
 
 /// @brief Read and dispatch one message from a client
 /// @param c: Message
-void client_handle(client_t *c)
+void client_handle(server_client_t *c)
 {
 	uint8_t buf[HEADER_SIZE + MAX_PAYLOAD];
 	msg_t *msg = (msg_t *)buf;
@@ -315,7 +315,7 @@ void server_run(void)
 		{
 			if (pfds[i].revents & POLLIN)
 			{
-				client_t *c = client_by_sock(pfds[i].fd);
+				server_client_t *c = client_by_sock(pfds[i].fd);
 				if (!c)
 					continue;
 

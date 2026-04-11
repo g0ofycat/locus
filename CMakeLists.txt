@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 17)
 add_executable(main
 	src/io/msg_io.c
 	src/client/client.c
+	src/client/input/input.c
+	src/client/rendering/render.c
 	src/server/server.c
 )
 
@@ -13,6 +15,8 @@ target_include_directories(main
 	src/protocol
 	src/io
 	src/client
+	src/client/input
+	src/client/rendering
 	src/server
 )
 

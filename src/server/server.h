@@ -23,7 +23,7 @@ typedef struct {
 	char    username[MAX_USERNAME];
 	char    session_id[MAX_SESSION_ID];
 	int     joined;	// (0, 1)
-} client_t;
+} server_client_t;
 
 //--============
 // -- API
@@ -48,7 +48,7 @@ void broadcast(SOCKET sender_sock, uint8_t type, const void *payload, uint16_t l
 
 /// @brief Read and dispatch one message from a client
 /// @param c: Message
-void client_handle(client_t *c);
+void client_handle(server_client_t *c);
 
 /// @brief Initialize Winsock, bind, listen, enter poll loop
 void server_run(void);
