@@ -35,6 +35,18 @@ msg_status_t msg_send(SOCKET sock, uint8_t type, uint8_t flags, const void *payl
 	if (len > MAX_PAYLOAD) return MSG_ERR_FRAME;
 	if (len > 0 && payload == NULL) return MSG_ERR_FRAME;
 
+	uint8_t buf[HEADER_SIZE + MAX_PAYLOAD + ENCRYPT_OVERHEAD];
+	msg_t *msg = (msg_t *)buf;
+	msg->type = type;
+	msg->flags = flags;
+	msg->seq = 0;
+	msg->timestamp = 0;
+
+	if (len == 0) {
+		msg->len = 0;
+		return write_exact(sock, buf, HEADER_SIZE) == 0 ? MSG_OK : MSG_ERR_IO;
+	}
+
 	uint8_t compressed[MAX_PAYLOAD];
 	uint8_t encrypted[MAX_PAYLOAD + ENCRYPT_OVERHEAD];
 
@@ -44,15 +56,7 @@ msg_status_t msg_send(SOCKET sock, uint8_t type, uint8_t flags, const void *payl
 	size_t encrypted_len = encrypt_data(key, compressed, compressed_len, encrypted, sizeof(encrypted));
 	if (encrypted_len == 0) return MSG_ERR_FRAME;
 
-	uint8_t buf[HEADER_SIZE + MAX_PAYLOAD + ENCRYPT_OVERHEAD];
-	msg_t *msg = (msg_t *)buf;
-
-	msg->type = type;
-	msg->flags = flags;
 	msg->len = htons((uint16_t)encrypted_len);
-	msg->seq = 0;
-	msg->timestamp = 0;
-
 	memcpy(msg->payload, encrypted, encrypted_len);
 
 	return write_exact(sock, buf, HEADER_SIZE + encrypted_len) == 0 ? MSG_OK : MSG_ERR_IO;
@@ -71,6 +75,7 @@ msg_status_t msg_recv(SOCKET sock, msg_t *buf, size_t bufsz, const uint8_t *key)
 
 	uint16_t payload_len = ntohs(buf->len);
 
+	if (payload_len == 0) return MSG_OK;
 	if (payload_len > MAX_PAYLOAD) return MSG_ERR_FRAME;
 	if (payload_len <= ENCRYPT_OVERHEAD) return MSG_ERR_FRAME;
 	if (payload_len > bufsz - HEADER_SIZE) return MSG_ERR_FRAME;
@@ -109,6 +114,22 @@ msg_status_t msg_enqueue(uint8_t *ring, int *head, int *tail, int *pending,
 {
 	if (len > MAX_PAYLOAD) return MSG_ERR_FRAME;
 	if (len > 0 && payload == NULL) return MSG_ERR_FRAME;
+
+	if (len == 0) {
+		if (ring_size - *pending < (int)HEADER_SIZE) return MSG_ERR_FULL;
+
+		uint8_t hdr[HEADER_SIZE];
+		msg_t *h = (msg_t *)hdr;
+		h->type = type;
+		h->flags = flags;
+		h->len = 0;
+		h->seq = 0;
+		h->timestamp = 0;
+		ring_write(ring, tail, ring_size, hdr, (int)HEADER_SIZE);
+		*pending += (int)HEADER_SIZE;
+
+		return MSG_OK;
+	}
 
 	uint8_t compressed[MAX_PAYLOAD];
 	uint8_t encrypted[MAX_PAYLOAD + ENCRYPT_OVERHEAD];

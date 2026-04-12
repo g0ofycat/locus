@@ -188,7 +188,7 @@ void client_remove(SOCKET sock)
 /// @param sender_sock: Pass INVALID_SOCKET to broadcast to everyone
 void broadcast(SOCKET sender_sock, uint8_t type, const void *payload, uint16_t len)
 {
-	static const uint8_t bypass_opcodes[] = { 0x01, 0x02, 0x10 };
+	static const uint8_t bypass_opcodes[] = { 0x01, 0x02, 0x04, 0x10 };
 
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
