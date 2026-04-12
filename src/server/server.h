@@ -22,6 +22,7 @@
 
 typedef struct {
 	uint8_t sendbuf[SEND_BUF_SIZE]; // ring buf so socket non-blocking
+	uint8_t key[32];                // encryption
 	char session_id[MAX_SESSION_ID];
 	char username[MAX_USERNAME];
 	SOCKET sock;

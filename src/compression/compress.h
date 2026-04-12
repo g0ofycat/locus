@@ -1,12 +1,16 @@
 #pragma once
 
-#include "../../dependencies/zstd/zstd.h"
+#include <zstd.h>
+
+//--============
+// -- CONSTS
+//--============
 
 #define COMPRESSION_LEVEL 11
 
-//--================
+//--============
 // -- API
-//--================
+//--============
 
 /// @brief Compress data using zstd
 /// @param src: Source of input
@@ -21,5 +25,5 @@ size_t compress_data(const void* src, size_t srcSize, void* dst, size_t dstCapac
 /// @param dstCapacity: Size of source
 /// @param src: Destination buffer
 /// @param srcSize: Size of destination
-/// @reutrn size_t: Size of decompressed data
+/// @return size_t: Size of decompressed data
 size_t decompressed_data(void* dst, size_t dstCapacity, const void* src, size_t srcSize);

@@ -1,13 +1,17 @@
-cmake_minimum_required(VERSION 3.16)
+# build/ cmake .. -DCMAKE_TOOLCHAIN_FILE=C:/Users/clint/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-mingw-static
 
+cmake_minimum_required(VERSION 3.16)
 project(locus LANGUAGES C)
+
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+find_package(zstd CONFIG REQUIRED)
 
 add_executable(locus_server
-	dependencies/tlse/libtomcrypt.c
-	dependencies/tlse/tlse.c
+	src/keys/key_exchange.c
 
-	src/compression/compression.c
+	src/compression/compress.c
 	src/encryption/encrypt.c
 
 	main/server/server.c
@@ -16,9 +20,8 @@ add_executable(locus_server
 )
 
 target_include_directories(locus_server PRIVATE
-	dependencies/tlse
-	dependencies/zstd
-
+	src/keys
+	src/utils
 	src/compression
 	src/encryption
 	src/protocol
@@ -26,13 +29,12 @@ target_include_directories(locus_server PRIVATE
 	src/server
 )
 
-target_link_libraries(locus_server PRIVATE ws2_32)
+target_link_libraries(locus_server PRIVATE ws2_32 bcrypt zstd::libzstd_static)
 
 add_executable(locus_client
-	dependencies/tlse/libtomcrypt.c
-	dependencies/tlse/tlse.c
+	src/keys/key_exchange.c
 
-	src/compression/compression.c
+	src/compression/compress.c
 	src/encryption/encrypt.c
 
 	main/client/client.c
@@ -43,9 +45,8 @@ add_executable(locus_client
 )
 
 target_include_directories(locus_client PRIVATE
-	dependencies/tlse
-	dependencies/zstd
-
+	src/keys
+	src/utils
 	src/compression
 	src/encryption
 	src/protocol
@@ -55,4 +56,4 @@ target_include_directories(locus_client PRIVATE
 	src/client/rendering
 )
 
-target_link_libraries(locus_client PRIVATE ws2_32)
+target_link_libraries(locus_client PRIVATE ws2_32 bcrypt zstd::libzstd_static)

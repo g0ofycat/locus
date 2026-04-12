@@ -18,6 +18,7 @@
 //--============
 
 typedef struct {
+	uint8_t key[32];                // encryption
 	char input_buf[INPUT_BUF_SIZE]; // current line being typed
 	char session_id[MAX_SESSION_ID];
 	char username[MAX_USERNAME];

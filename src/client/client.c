@@ -5,6 +5,7 @@
 #include "client.h"
 #include "./input/input.h"
 #include "./rendering/render.h"
+#include "../keys/key_exchange.h"
 
 //--================
 // -- PRIVATE
@@ -20,7 +21,7 @@ static DWORD WINAPI recv_thread(void *arg)
 
 	while (c->running)
 	{
-		if (msg_recv(c->sock, msg, sizeof(buf)) != MSG_OK)
+		if (msg_recv(c->sock, msg, sizeof(buf), c->key) != MSG_OK)
 		{
 			if (c->running)
 				render_system(c, "disconnected from server");
@@ -140,8 +141,15 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 		return MSG_ERR_IO;
 	}
 
+	if (key_exchange(c->sock, c->key, 0) != 0) {
+		fprintf(stderr, "[client]: key exchange failed\n");
+		closesocket(c->sock);
+		WSACleanup();
+		return MSG_ERR_IO;
+	}
+
 	uint16_t ulen = (uint16_t)(strlen(username) + 1);
-	if (msg_send(c->sock, MSG_JOIN, 0, username, ulen) != MSG_OK)
+	if (msg_send(c->sock, MSG_JOIN, 0, username, ulen, c->key) != MSG_OK)
 	{
 		fprintf(stderr, "[client]: MSG_JOIN failed\n");
 		closesocket(c->sock);
@@ -151,7 +159,7 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 
 	uint8_t buf[HEADER_SIZE + MAX_PAYLOAD];
 	msg_t *msg = (msg_t *)buf;
-	if (msg_recv(c->sock, msg, sizeof(buf)) != MSG_OK)
+	if (msg_recv(c->sock, msg, sizeof(buf), c->key) != MSG_OK)
 	{
 		fprintf(stderr, "[client]: handshake failed\n");
 		closesocket(c->sock);
@@ -209,7 +217,7 @@ void client_disconnect(client_state_t *c)
 {
 	if (c->sock != INVALID_SOCKET)
 	{
-		msg_send(c->sock, MSG_LEAVE, 0, c->username, (uint16_t)(strlen(c->username) + 1));
+		msg_send(c->sock, MSG_LEAVE, 0, c->username, (uint16_t)(strlen(c->username) + 1), c->key);
 		closesocket(c->sock);
 		c->sock = INVALID_SOCKET;
 	}

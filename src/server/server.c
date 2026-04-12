@@ -6,6 +6,7 @@
 #include <time.h>
 
 #include "server.h"
+#include "../keys/key_exchange.h"
 
 //--================
 // -- PRIVATE STATE
@@ -85,7 +86,7 @@ static msg_status_t client_enqueue(server_client_t *c, uint8_t type, uint8_t fla
 		const void *payload, uint16_t len)
 {
 	return msg_enqueue(c->sendbuf, &c->send_head, &c->send_tail, &c->send_len,
-			SEND_BUF_SIZE, type, flags, payload, len);
+			SEND_BUF_SIZE, type, flags, payload, len, c->key);
 }
 
 /// @brief Flush client ring buffer
@@ -116,9 +117,6 @@ int client_add(SOCKET sock)
 	int sndbuf = 256 * 1024;
 	setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char *)&sndbuf, sizeof(sndbuf));
 
-	u_long mode = 1;
-	ioctlsocket(sock, FIONBIO, &mode);
-
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if (clients[i].sock != INVALID_SOCKET)
@@ -132,6 +130,15 @@ int client_add(SOCKET sock)
 
 		memset(clients[i].username, 0, MAX_USERNAME);
 		memset(clients[i].session_id, 0, MAX_SESSION_ID);
+
+		if (key_exchange(sock, clients[i].key, 1) != 0) {
+			clients[i].sock = INVALID_SOCKET;
+			closesocket(sock);
+			return -1;
+		}
+
+		u_long mode = 1;
+		ioctlsocket(sock, FIONBIO, &mode);
 
 		pfds[nfds].fd = sock;
 		pfds[nfds].events = POLLIN;
@@ -203,7 +210,7 @@ void client_handle(server_client_t *c)
 	uint8_t buf[HEADER_SIZE + MAX_PAYLOAD];
 	msg_t *msg = (msg_t *)buf;
 
-	if (msg_recv(c->sock, msg, sizeof(buf)) != MSG_OK)
+	if (msg_recv(c->sock, msg, sizeof(buf), c->key) != MSG_OK)
 	{
 		client_remove(c->sock);
 		return;
@@ -212,7 +219,7 @@ void client_handle(server_client_t *c)
 	if (!c->joined && msg->type != MSG_JOIN)
 	{
 		error_code_t err = ERR_NOT_JOINED;
-		msg_send(c->sock, MSG_ERROR, 0, &err, sizeof(err));
+		msg_send(c->sock, MSG_ERROR, 0, &err, sizeof(err), c->key);
 		return;
 	}
 
@@ -226,7 +233,7 @@ void client_handle(server_client_t *c)
 				if (username_taken(username))
 				{
 					error_code_t err = ERR_USERNAME_TAKEN;
-					msg_send(c->sock, MSG_ERROR, 0, &err, sizeof(err));
+					msg_send(c->sock, MSG_ERROR, 0, &err, sizeof(err), c->key);
 					return;
 				}
 
@@ -234,7 +241,7 @@ void client_handle(server_client_t *c)
 				session_id_generate(c->session_id);
 				c->joined = 1;
 
-				msg_send(c->sock, MSG_WELCOME, 0, c->session_id, (uint16_t)strlen(c->session_id) + 1);
+				msg_send(c->sock, MSG_WELCOME, 0, c->session_id, (uint16_t)strlen(c->session_id) + 1, c->key);
 				broadcast(c->sock, MSG_JOIN, c->username, (uint16_t)strlen(c->username) + 1);
 				break;
 			}
@@ -263,7 +270,7 @@ void client_handle(server_client_t *c)
 				if (username_taken(new_name))
 				{
 					error_code_t err = ERR_USERNAME_TAKEN;
-					msg_send(c->sock, MSG_ERROR, 0, &err, sizeof(err));
+					msg_send(c->sock, MSG_ERROR, 0, &err, sizeof(err), c->key);
 					return;
 				}
 
@@ -391,10 +398,7 @@ void server_run(void)
 				continue;
 			}
 			if (client_add(sock) == -1)
-			{
 				fprintf(stderr, "[server]: max clients reached\n");
-				closesocket(sock);
-			}
 		}
 
 		for (int i = nfds - 1; i >= 1; --i)
