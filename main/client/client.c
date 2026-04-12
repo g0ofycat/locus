@@ -12,7 +12,7 @@
 static void usage(const char *prog) {
 	SetConsoleOutputCP(65001);
 
-    printf(PINK
+    printf("%s", PINK
 "                                                  -==.\n"
 "                                                   ====-\n"
 "                                                   ==-====                               --==:\n"
