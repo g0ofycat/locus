@@ -1,10 +1,18 @@
 #include <stdio.h>
 #include "../../src/client/client.h"
 
+
+#define PINK "\033[35m"
+#define YELLOW "\033[33m"
+#define GREY "\033[37m"
+#define RESET "\033[0m"
+
 /// @brief Print usage
 /// @param prog: argv[0]
 static void usage(const char *prog) {
-    printf(
+	SetConsoleOutputCP(65001);
+
+    printf(PINK
 "                                                  -==.\n"
 "                                                   ====-\n"
 "                                                   ==-====                               --==:\n"
@@ -32,13 +40,29 @@ static void usage(const char *prog) {
 "                                    :--::---..:::::-:-=:::.                    =========:--====:=-===--:::--=======-\n"
 "                                           .-------::: .                          =====-==========:::---------\n"
 "                                                                                      .:--::      .::\n"
-    );
+    RESET);
+	
+    printf(PINK "\n\n"
+"						 ██▓     ▒█████   ▄████▄   █    ██   ██████ \n"
+"						▓██▒    ▒██▒  ██▒▒██▀ ▀█   ██  ▓██▒▒██    ▒ \n"
+"						▒██░    ▒██░  ██▒▒▓█    ▄ ▓██  ▒██░░ ▓██▄   \n"
+"						▒██░    ▒██   ██░▒▓▓▄ ▄██▒▓▓█  ░██░  ▒   ██▒\n"
+"						░██████▒░ ████▓▒░▒ ▓███▀ ░▒▒█████▓ ▒██████▒▒\n"
+"						░ ▒░▓  ░░ ▒░▒░▒░ ░ ░▒ ▒  ░░▒▓▒ ▒ ▒ ▒ ▒▓▒ ▒ ░\n"
+"						░ ░ ▒  ░  ░ ▒ ▒░   ░  ▒   ░░▒░ ░ ░ ░ ░▒  ░ ░\n"
+"						  ░ ░   ░ ░ ░ ▒  ░         ░░░ ░ ░ ░  ░  ░  \n"
+"						    ░  ░    ░ ░  ░ ░         ░           ░  \n"
+"						                 ░                          \n"
+    RESET);
 
-	printf("\nlocus - a terminal based chat-room:\n\n");
-	fprintf(stderr, "	- usage: 	 %s <host> <username> [port]\n", prog);
-	fprintf(stderr, "	- host:     server IP address\n");
-	fprintf(stderr, "	- username: desired username\n");
-	fprintf(stderr, "	- port:     server port (default: %d)\n", SERVER_DEFAULT_PORT);
+	printf(YELLOW
+"\n\n							a terminal based chat-room:\n\n"
+RESET);
+
+	fprintf(stderr, GREY "						- usage: %s <host> <username> [port]\n" RESET, prog);
+	fprintf(stderr, GREY "						- host: server IP address\n" RESET);
+	fprintf(stderr, GREY "						- username: desired username\n" RESET);
+	fprintf(stderr, GREY "						- port: server port (default: %d)\n" RESET, SERVER_DEFAULT_PORT);
 }
 
 /// @brief Run
