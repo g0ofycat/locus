@@ -18,16 +18,16 @@
 //--============
 
 typedef struct {
-	SOCKET sock;
-	char username[MAX_USERNAME];
-	char session_id[MAX_SESSION_ID];
 	char input_buf[INPUT_BUF_SIZE]; // current line being typed
-	int input_len;                  // cursor position / length
+	char session_id[MAX_SESSION_ID];
+	char username[MAX_USERNAME];
 	HANDLE hin;                     // STD_INPUT_HANDLE
 	HANDLE hout;                    // STD_OUTPUT_HANDLE
+	HANDLE render_mutex;            // for rendering chats
+	SOCKET sock;
+	int input_len;                  // cursor position / length
 	DWORD original_mode;            // restored on exit
 	volatile int running;           // 0 = threads should exit
-	HANDLE render_mutex;            // for rendering chats
 } client_state_t;
 
 //--============

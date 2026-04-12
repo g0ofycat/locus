@@ -21,13 +21,14 @@
 //--============
 
 typedef struct {
-	SOCKET sock;
-	char username[MAX_USERNAME];
-	char session_id[MAX_SESSION_ID];
-	int joined;	// (0, 1)
-
 	uint8_t sendbuf[SEND_BUF_SIZE]; // ring buf so socket non-blocking
-	int send_head, send_tail, send_len;
+	char session_id[MAX_SESSION_ID];
+	char username[MAX_USERNAME];
+	SOCKET sock;
+	int joined;	// (0, 1)
+	int send_head;
+	int send_tail;
+	int send_len;
 } server_client_t;
 
 //--============

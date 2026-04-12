@@ -23,8 +23,8 @@ typedef enum {
 } cmd_type_t;
 
 typedef struct {
-	cmd_type_t type;
 	char arg[MAX_USERNAME]; // CMD_TYPE_RENAME
+	cmd_type_t type;
 } cmd_t;
 
 //--============
