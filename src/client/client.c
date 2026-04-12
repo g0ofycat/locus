@@ -1,9 +1,10 @@
-#include "client.h"
-#include "./input/input.h"
-#include "./rendering/render.h"
 #include <ws2tcpip.h>
 #include <string.h>
 #include <stdio.h>
+
+#include "client.h"
+#include "./input/input.h"
+#include "./rendering/render.h"
 
 //--================
 // -- PRIVATE
@@ -138,7 +139,6 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 		return MSG_ERR_IO;
 	}
 
-	// send MSG_JOIN
 	uint16_t ulen = (uint16_t)(strlen(username) + 1);
 	if (msg_send(c->sock, MSG_JOIN, 0, username, ulen) != MSG_OK)
 	{
@@ -148,7 +148,6 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 		return MSG_ERR_IO;
 	}
 
-	// wait for MSG_WELCOME or MSG_ERROR
 	uint8_t buf[HEADER_SIZE + MAX_PAYLOAD];
 	msg_t *msg = (msg_t *)buf;
 	if (msg_recv(c->sock, msg, sizeof(buf)) != MSG_OK)
@@ -213,5 +212,6 @@ void client_disconnect(client_state_t *c)
 		closesocket(c->sock);
 		c->sock = INVALID_SOCKET;
 	}
+
 	WSACleanup();
 }

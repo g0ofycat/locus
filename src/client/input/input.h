@@ -7,8 +7,8 @@
 //--============
 
 #define CMD_RENAME "/rename"
-#define CMD_USERS  "/users"
-#define CMD_QUIT   "/quit"
+#define CMD_USERS "/users"
+#define CMD_QUIT "/quit"
 
 //--============
 // -- STRUCTS

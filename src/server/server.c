@@ -181,12 +181,13 @@ void client_handle(server_client_t *c)
 			}
 		case MSG_CHAT:
 			{
-				char payload[MAX_USERNAME + MAX_PAYLOAD];
+				char *msg_text = msg->payload + strlen(msg->payload) + 1;
 				int ulen = (int)strlen(c->username) + 1;
-				int mlen = (int)ntohs(msg->len);
+				int mlen = (int)strlen(msg_text) + 1;
+				char payload[MAX_USERNAME + MAX_PAYLOAD];
 
 				memcpy(payload, c->username, ulen);
-				memcpy(payload + ulen, msg->payload, mlen);
+				memcpy(payload + ulen, msg_text, mlen);
 				broadcast(c->sock, MSG_CHAT, payload, (uint16_t)(ulen + mlen));
 				break;
 			}
@@ -219,6 +220,27 @@ void client_handle(server_client_t *c)
 		case MSG_PING:
 			{
 				msg_send(c->sock, MSG_PONG, 0, NULL, 0);
+				break;
+			}
+		case MSG_USER_LIST_REQ:
+			{
+				char payload[MAX_CLIENTS * MAX_USERNAME];
+				uint8_t count  = 0;
+				int offset = 1;
+
+				for (int i = 0; i < MAX_CLIENTS; i++) {
+					if (clients[i].sock == INVALID_SOCKET) continue;
+					if (!clients[i].joined) continue;
+
+					int ulen = (int)strlen(clients[i].username) + 1;
+					memcpy(payload + offset, clients[i].username, ulen);
+
+					offset += ulen;
+					count++;
+				}
+
+				payload[0] = count;
+				msg_send(c->sock, MSG_USER_LIST, 0, payload, (uint16_t)offset);
 				break;
 			}
 		default:

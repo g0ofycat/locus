@@ -17,11 +17,15 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 	{
 		case CMD_TYPE_CHAT:
 			{
-				if (c->input_len == 0)
-					return;
+				char payload[MAX_USERNAME + INPUT_BUF_SIZE + 2]; // + 2 worst case w/ max buffer sizes
 
-				uint16_t len = (uint16_t)(c->input_len + 1);
-				msg_send(c->sock, MSG_CHAT, 0, c->input_buf, len);
+				int ulen = (int)strlen(c->username) + 1;
+				int mlen = c->input_len + 1;
+
+				memcpy(payload, c->username, ulen);
+				memcpy(payload + ulen, c->input_buf, mlen);
+
+				msg_send(c->sock, MSG_CHAT, 0, payload, (uint16_t)(ulen + mlen));
 				break;
 			}
 		case CMD_TYPE_RENAME:
@@ -35,8 +39,12 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 				char payload[MAX_USERNAME * 2];
 				int olen = (int)strlen(c->username) + 1;
 				memcpy(payload, c->username, olen);
-				snprintf(payload + olen, MAX_USERNAME, "%s", cmd->arg);
-				uint16_t len = (uint16_t)(olen + strlen(cmd->arg) + 1);
+
+				int nlen = (int)strlen(cmd->arg) + 1;
+				memcpy(payload + olen, cmd->arg, nlen);
+
+				uint16_t len = (uint16_t)(olen + nlen);
+
 				msg_send(c->sock, MSG_RENAME, 0, payload, len);
 				break;
 			}
@@ -174,8 +182,10 @@ void input_run(client_state_t *c)
 
 			cmd_t cmd;
 			input_parse(c->input_buf, &cmd);
-			input_clear(c);
+
 			dispatch(c, &cmd);
+
+			input_clear(c);
 		}
 		else if (vk == VK_BACK)
 		{
