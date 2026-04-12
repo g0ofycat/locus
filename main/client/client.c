@@ -2,8 +2,9 @@
 #include "../../src/client/client.h"
 
 
-#define PINK "\033[35m"
-#define YELLOW "\033[33m"
+#define PINK "\033[95m"
+#define LIGHT_PINK "\x1b[38;5;225m"
+#define YELLOW "\033[93m"
 #define GREY "\033[37m"
 #define RESET "\033[0m"
 
@@ -12,7 +13,7 @@
 static void usage(const char *prog) {
 	SetConsoleOutputCP(65001);
 
-    printf("%s", PINK
+    printf("%s", LIGHT_PINK
 "                                                  -==.\n"
 "                                                   ====-\n"
 "                                                   ==-====                               --==:\n"
@@ -42,7 +43,7 @@ static void usage(const char *prog) {
 "                                                                                      .:--::      .::\n"
     RESET);
 	
-    printf(PINK "\n\n"
+    printf(LIGHT_PINK "\n\n"
 "							 ██╗      ██████╗  ██████╗██╗   ██╗███████╗\n"
 "							 ██║     ██╔═══██╗██╔════╝██║   ██║██╔════╝\n"
 "							 ██║     ██║   ██║██║     ██║   ██║███████╗\n"
@@ -55,10 +56,15 @@ static void usage(const char *prog) {
 "\n\n								a terminal based chat-room:\n\n"
 RESET);
 
-	fprintf(stderr, GREY "					- usage: %s <host> <username> [port]\n" RESET, prog);
-	fprintf(stderr, GREY "					- host: server IP address\n" RESET);
-	fprintf(stderr, GREY "					- username: desired username\n" RESET);
-	fprintf(stderr, GREY "					- port: server port (default: %d)\n" RESET, SERVER_DEFAULT_PORT);
+	fprintf(stderr, PINK "					- usage: %s <host> <username> [port]\n" RESET, prog);
+	fprintf(stderr, GREY "						- host: server IP address\n" RESET);
+	fprintf(stderr, GREY "						- username: desired username\n" RESET);
+	fprintf(stderr, GREY "						- port: server port (default: %d)\n\n" RESET, SERVER_DEFAULT_PORT);
+
+	fprintf(stderr, PINK "					- chat commands:\n" RESET);
+	fprintf(stderr, GREY "						- rename username: /rename <new_name>\n" RESET);
+	fprintf(stderr, GREY "						- list current clients in port: /users\n" RESET);
+	fprintf(stderr, GREY "						- leave current chat: /quit\n" RESET);
 }
 
 /// @brief Run
