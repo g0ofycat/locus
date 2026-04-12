@@ -112,6 +112,7 @@ void client_remove(SOCKET sock)
 			continue;
 		pfds[i] = pfds[nfds - 1];
 		nfds--;
+		i--;
 		break;
 	}
 }
@@ -224,22 +225,27 @@ void client_handle(server_client_t *c)
 			}
 		case MSG_USER_LIST_REQ:
 			{
-				char payload[MAX_CLIENTS * MAX_USERNAME];
-				uint8_t count  = 0;
+				char payload[MAX_CLIENTS * MAX_USERNAME + 1];
+				uint8_t count = 0;
 				int offset = 1;
 
-				for (int i = 0; i < MAX_CLIENTS; i++) {
+				for (int i = 0; i < MAX_CLIENTS; i++)
+				{
 					if (clients[i].sock == INVALID_SOCKET) continue;
 					if (!clients[i].joined) continue;
 
 					int ulen = (int)strlen(clients[i].username) + 1;
+
+					if (offset + ulen >= sizeof(payload))
+						break;
+
 					memcpy(payload + offset, clients[i].username, ulen);
 
 					offset += ulen;
 					count++;
 				}
 
-				payload[0] = count;
+				payload[0] = (char)count;
 				msg_send(c->sock, MSG_USER_LIST, 0, payload, (uint16_t)offset);
 				break;
 			}
@@ -333,8 +339,14 @@ void server_run(void)
 			}
 		}
 
-		for (int i = nfds - 1; i >= 1; i--)
+		for (int i = nfds - 1; i >= 1; --i)
 		{
+			if (pfds[i].revents & (POLLHUP | POLLERR | POLLNVAL))
+			{
+				client_remove(pfds[i].fd);
+				continue;
+			}
+
 			if (pfds[i].revents & POLLIN)
 			{
 				server_client_t *c = client_by_sock(pfds[i].fd);
