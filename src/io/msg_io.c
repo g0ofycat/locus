@@ -131,6 +131,7 @@ msg_status_t msg_enqueue(uint8_t *ring, int *head, int *tail, int *pending,
 		ring_write(ring, tail, ring_size, payload, (int)len);
 
 	*pending += (int)(HEADER_SIZE + len);
+
 	return MSG_OK;
 }
 
@@ -156,5 +157,6 @@ msg_status_t msg_flush(SOCKET sock, uint8_t *ring, int *head, int *pending, int 
 		*head = (*head + s) % ring_size;
 		*pending -= s;
 	}
+
 	return MSG_OK;
 }
