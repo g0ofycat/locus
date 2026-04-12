@@ -48,6 +48,18 @@ static void print_line(client_state_t *c, const char *line) {
 	WriteConsole(c->hout, "\r\n", 2, &written, NULL);
 }
 
+/// @brief Redraw input line without acquiring mutex (caller must hold)
+/// @param c
+static void render_input_unlocked(client_state_t *c) {
+	erase_input_line(c);
+
+	char line[INPUT_BUF_SIZE + 4];
+	snprintf(line, sizeof(line), "> %s", c->input_buf);
+
+	DWORD written;
+	WriteConsole(c->hout, line, (DWORD)strlen(line), &written, NULL);
+}
+
 //--================
 // -- API
 //--================
@@ -85,13 +97,9 @@ void render_cleanup(client_state_t *c) {
 /// @brief Redraw the input line at the bottom of the terminal
 /// @param c: Client state
 void render_input(client_state_t *c) {
-	erase_input_line(c);
-
-	char line[INPUT_BUF_SIZE + 4];
-	snprintf(line, sizeof(line), "> %s", c->input_buf);
-
-	DWORD written;
-	WriteConsole(c->hout, line, (DWORD)strlen(line), &written, NULL);
+	WaitForSingleObject(c->render_mutex, INFINITE);
+	render_input_unlocked(c);
+	ReleaseMutex(c->render_mutex);
 }
 
 /// @brief Erase input line, print formatted chat message, redraw input line
@@ -99,6 +107,8 @@ void render_input(client_state_t *c) {
 /// @param username: Sender username
 /// @param message: Message content
 void render_message(client_state_t *c, const char *username, const char *message) {
+	WaitForSingleObject(c->render_mutex, INFINITE);
+
 	erase_input_line(c);
 
 	char ts[16];
@@ -108,13 +118,17 @@ void render_message(client_state_t *c, const char *username, const char *message
 	snprintf(line, sizeof(line), "%s %s: %s", ts, username, message);
 	print_line(c, line);
 
-	render_input(c);
+	render_input_unlocked(c);
+
+	ReleaseMutex(c->render_mutex);
 }
 
 /// @brief Erase input line, print system notice, redraw input line
 /// @param c: Client state
 /// @param text: Notice text (join, leave, rename)
 void render_system(client_state_t *c, const char *text) {
+	WaitForSingleObject(c->render_mutex, INFINITE);
+
 	erase_input_line(c);
 
 	char ts[16];
@@ -124,7 +138,9 @@ void render_system(client_state_t *c, const char *text) {
 	snprintf(line, sizeof(line), "%s * %s", ts, text);
 	print_line(c, line);
 
-	render_input(c);
+	render_input_unlocked(c);
+
+	ReleaseMutex(c->render_mutex);
 }
 
 /// @brief Erase input line, print user list, redraw input line
@@ -132,6 +148,8 @@ void render_system(client_state_t *c, const char *text) {
 /// @param users: Pointer to packed username\0username\0... buffer
 /// @param count: Number of usernames in buffer
 void render_user_list(client_state_t *c, const char *users, uint8_t count) {
+	WaitForSingleObject(c->render_mutex, INFINITE);
+
 	erase_input_line(c);
 
 	char ts[16];
@@ -149,13 +167,17 @@ void render_user_list(client_state_t *c, const char *users, uint8_t count) {
 		cursor += strlen(cursor) + 1;
 	}
 
-	render_input(c);
+	render_input_unlocked(c);
+
+	ReleaseMutex(c->render_mutex);
 }
 
 /// @brief Erase input line, print error, redraw input line
 /// @param c: Client state
 /// @param code: error_code_t value
 void render_error(client_state_t *c, uint8_t code) {
+	WaitForSingleObject(c->render_mutex, INFINITE);
+
 	erase_input_line(c);
 
 	const char *desc;
@@ -174,5 +196,7 @@ void render_error(client_state_t *c, uint8_t code) {
 	snprintf(line, sizeof(line), "%s ! error: %s (0x%02X)", ts, desc, code);
 	print_line(c, line);
 
-	render_input(c);
+	render_input_unlocked(c);
+
+	ReleaseMutex(c->render_mutex);
 }

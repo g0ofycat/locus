@@ -14,6 +14,8 @@
 #define MAX_CLIENTS 256
 #define SERVER_PORT 6969
 
+#define SEND_BUF_SIZE 65536
+
 //--============
 // -- STRUCTS
 //--============
@@ -23,6 +25,9 @@ typedef struct {
 	char username[MAX_USERNAME];
 	char session_id[MAX_SESSION_ID];
 	int joined;	// (0, 1)
+
+	uint8_t sendbuf[SEND_BUF_SIZE]; // ring buf so socket non-blocking
+	int send_head, send_tail, send_len;
 } server_client_t;
 
 //--============

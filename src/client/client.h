@@ -27,6 +27,7 @@ typedef struct {
 	HANDLE hout;                    // STD_OUTPUT_HANDLE
 	DWORD original_mode;            // restored on exit
 	volatile int running;           // 0 = threads should exit
+	HANDLE render_mutex;            // for rendering chats
 } client_state_t;
 
 //--============

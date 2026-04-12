@@ -74,6 +74,36 @@ static server_client_t *client_by_sock(SOCKET sock)
 	return NULL;
 }
 
+/// @brief Queue a message
+/// @param c
+/// @param type
+/// @param flags
+/// @param payload
+/// @param len
+/// @return msg_status_t
+static msg_status_t client_enqueue(server_client_t *c, uint8_t type, uint8_t flags,
+		const void *payload, uint16_t len)
+{
+	return msg_enqueue(c->sendbuf, &c->send_head, &c->send_tail, &c->send_len,
+			SEND_BUF_SIZE, type, flags, payload, len);
+}
+
+/// @brief Flush client ring buffer
+/// @param c
+/// @return msg_status_t
+static msg_status_t client_flush(server_client_t *c)
+{
+	return msg_flush(c->sock, c->sendbuf, &c->send_head, &c->send_len, SEND_BUF_SIZE);
+}
+
+/// @param Check if sending len > 0
+/// @param c
+/// @return 1 if true, else 0
+static int client_has_pending(server_client_t *c)
+{
+	return c->send_len > 0;
+}
+
 //--================
 // -- API
 //--================
@@ -83,6 +113,12 @@ static server_client_t *client_by_sock(SOCKET sock)
 /// @return Index on success, -1 if full
 int client_add(SOCKET sock)
 {
+	int sndbuf = 256 * 1024;
+	setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char *)&sndbuf, sizeof(sndbuf));
+
+	u_long mode = 1;
+	ioctlsocket(sock, FIONBIO, &mode);
+
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if (clients[i].sock != INVALID_SOCKET)
@@ -90,6 +126,10 @@ int client_add(SOCKET sock)
 
 		clients[i].sock = sock;
 		clients[i].joined = 0;
+		clients[i].send_head = 0;
+		clients[i].send_tail = 0;
+		clients[i].send_len = 0;
+
 		memset(clients[i].username, 0, MAX_USERNAME);
 		memset(clients[i].session_id, 0, MAX_SESSION_ID);
 
@@ -147,12 +187,12 @@ void broadcast(SOCKET sender_sock, uint8_t type, const void *payload, uint16_t l
 	{
 		if (clients[i].sock == INVALID_SOCKET)
 			continue;
-		if (clients[i].sock == sender_sock && element_in_array(type, bypass_opcodes, sizeof(bypass_opcodes) / sizeof(bypass_opcodes[0])))
+		if (clients[i].sock == sender_sock && element_in_array(type, bypass_opcodes, sizeof(bypass_opcodes) / sizeof(bypass_opcodes[0])) != 0)
 			continue;
 		if (!clients[i].joined)
 			continue;
 
-		msg_send(clients[i].sock, type, 0, payload, len);
+		client_enqueue(&clients[i], type, 0, payload, len);
 	}
 }
 
@@ -238,7 +278,7 @@ void client_handle(server_client_t *c)
 			}
 		case MSG_PING:
 			{
-				msg_send(c->sock, MSG_PONG, 0, NULL, 0);
+				client_enqueue(c, MSG_PONG, 0, NULL, 0);
 				break;
 			}
 		case MSG_USER_LIST_REQ:
@@ -264,13 +304,13 @@ void client_handle(server_client_t *c)
 				}
 
 				payload[0] = (char)count;
-				msg_send(c->sock, MSG_USER_LIST, 0, payload, (uint16_t)offset);
+				client_enqueue(c, MSG_USER_LIST, 0, payload, (uint16_t)offset);
 				break;
 			}
 		default:
 			{
 				error_code_t err = ERR_BAD_FRAME;
-				msg_send(c->sock, MSG_ERROR, 0, &err, sizeof(err));
+				client_enqueue(c, MSG_ERROR, 0, &err, sizeof(err));
 				break;
 			}
 	}
@@ -368,11 +408,30 @@ void server_run(void)
 			if (pfds[i].revents & POLLIN)
 			{
 				server_client_t *c = client_by_sock(pfds[i].fd);
-				if (!c)
-					continue;
-
-				client_handle(c);
+				if (c) client_handle(c);
 			}
+
+			server_client_t *c = client_by_sock(pfds[i].fd);
+			if (!c) continue;
+
+			if (client_has_pending(c))
+			{
+				if (client_flush(c) == MSG_ERR_IO)
+				{
+					client_remove(pfds[i].fd);
+					continue;
+				}
+			}
+			else if (pfds[i].revents & POLLOUT)
+			{
+				if (client_flush(c) == MSG_ERR_IO)
+				{
+					client_remove(pfds[i].fd);
+					continue;
+				}
+			}
+
+			pfds[i].events = POLLIN | (client_has_pending(c) ? POLLOUT : 0);
 		}
 	}
 

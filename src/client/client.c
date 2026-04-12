@@ -103,6 +103,7 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 	c->running = 1;
 	c->hin = GetStdHandle(STD_INPUT_HANDLE);
 	c->hout = GetStdHandle(STD_OUTPUT_HANDLE);
+	c->render_mutex = CreateMutex(NULL, FALSE, NULL);
 
 	WSADATA wsa;
 	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
@@ -212,6 +213,8 @@ void client_disconnect(client_state_t *c)
 		closesocket(c->sock);
 		c->sock = INVALID_SOCKET;
 	}
+
+	CloseHandle(c->render_mutex);
 
 	WSACleanup();
 }
