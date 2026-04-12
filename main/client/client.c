@@ -43,22 +43,22 @@ static void usage(const char *prog) {
     RESET);
 	
     printf(PINK "\n\n"
-"						 ██╗      ██████╗  ██████╗██╗   ██╗███████╗\n"
-"						 ██║     ██╔═══██╗██╔════╝██║   ██║██╔════╝\n"
-"						 ██║     ██║   ██║██║     ██║   ██║███████╗\n"
-"						 ██║     ██║   ██║██║     ██║   ██║╚════██║\n"
-"						 ███████╗╚██████╔╝╚██████╗╚██████╔╝███████║\n"
-"						 ╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝ ╚══════╝\n"
+"							 ██╗      ██████╗  ██████╗██╗   ██╗███████╗\n"
+"							 ██║     ██╔═══██╗██╔════╝██║   ██║██╔════╝\n"
+"							 ██║     ██║   ██║██║     ██║   ██║███████╗\n"
+"							 ██║     ██║   ██║██║     ██║   ██║╚════██║\n"
+"							 ███████╗╚██████╔╝╚██████╗╚██████╔╝███████║\n"
+"							 ╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝ ╚══════╝\n"
     RESET);
 
 	printf(YELLOW
-"\n\n							a terminal based chat-room:\n\n"
+"\n\n								a terminal based chat-room:\n\n"
 RESET);
 
-	fprintf(stderr, GREY "				- usage: %s <host> <username> [port]\n" RESET, prog);
-	fprintf(stderr, GREY "				- host: server IP address\n" RESET);
-	fprintf(stderr, GREY "				- username: desired username\n" RESET);
-	fprintf(stderr, GREY "				- port: server port (default: %d)\n" RESET, SERVER_DEFAULT_PORT);
+	fprintf(stderr, GREY "					- usage: %s <host> <username> [port]\n" RESET, prog);
+	fprintf(stderr, GREY "					- host: server IP address\n" RESET);
+	fprintf(stderr, GREY "					- username: desired username\n" RESET);
+	fprintf(stderr, GREY "					- port: server port (default: %d)\n" RESET, SERVER_DEFAULT_PORT);
 }
 
 /// @brief Run
