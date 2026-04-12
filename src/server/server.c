@@ -19,6 +19,22 @@ static int nfds = 1;						// pfds[0] = listener
 // -- PRIVATE
 //--================
 
+/// @brief Check if element is in array
+/// @param element
+/// @param array
+/// @param sizeof_array
+/// @return 0 on find, -1 else
+static int element_in_array(uint8_t element, const uint8_t array[], uint8_t sizeof_array)
+{
+	for (size_t i = 0; i < sizeof_array; i++) {
+		if (element == array[i]) {
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
 /// @brief Generate random session ID (a-z, 0-9)
 /// @out: Caller-allocated buffer
 static void session_id_generate(char *out)
@@ -125,11 +141,13 @@ void client_remove(SOCKET sock)
 /// @param sender_sock: Pass INVALID_SOCKET to broadcast to everyone
 void broadcast(SOCKET sender_sock, uint8_t type, const void *payload, uint16_t len)
 {
+	static const uint8_t bypass_opcodes[] = { 0x01, 0x02, 0x10 };
+
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if (clients[i].sock == INVALID_SOCKET)
 			continue;
-		if (clients[i].sock == sender_sock)
+		if (clients[i].sock == sender_sock && element_in_array(type, bypass_opcodes, sizeof(bypass_opcodes) / sizeof(bypass_opcodes[0])))
 			continue;
 		if (!clients[i].joined)
 			continue;
