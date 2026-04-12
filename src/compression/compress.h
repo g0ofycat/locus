@@ -17,7 +17,7 @@
 /// @param srcSize: Size of source
 /// @param dst: Destination buffer
 /// @param dstCapacity: Size of destination
-/// @return size_t: Size of compressed data
+/// @return size_t: Size of compressed data, 0 on error
 size_t compress_data(const void* src, size_t srcSize, void* dst, size_t dstCapacity);
 
 /// @brief Decompress data using zstd
@@ -25,5 +25,5 @@ size_t compress_data(const void* src, size_t srcSize, void* dst, size_t dstCapac
 /// @param dstCapacity: Size of source
 /// @param src: Destination buffer
 /// @param srcSize: Size of destination
-/// @return size_t: Size of decompressed data
+/// @return size_t: Size of decompressed data, 0 on error
 size_t decompressed_data(void* dst, size_t dstCapacity, const void* src, size_t srcSize);

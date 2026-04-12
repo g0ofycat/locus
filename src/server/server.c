@@ -413,6 +413,13 @@ void server_run(void)
 			{
 				server_client_t *c = client_by_sock(pfds[i].fd);
 				if (c) client_handle(c);
+
+				for (int j = 1; j < nfds; j++)
+				{
+					server_client_t *other = client_by_sock(pfds[j].fd);
+					if (other && client_has_pending(other))
+						client_flush(other);
+				}
 			}
 
 			server_client_t *c = client_by_sock(pfds[i].fd);

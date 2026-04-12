@@ -26,17 +26,17 @@
 // -- OPCODES
 //--============
 
-#define MSG_CHAT           0x01	// client -> server
-#define MSG_JOIN           0x02	// client -> server
-#define MSG_LEAVE          0x03	// client -> server -> all other clients
-#define MSG_RENAME         0x04	// client -> server -> all other clients
-#define MSG_PING           0x05	// client -> server
-#define MSG_USER_LIST_REQ  0x06	// client -> server
+#define MSG_CHAT           0x01 // client -> server
+#define MSG_JOIN           0x02 // client -> server
+#define MSG_LEAVE          0x03 // client -> server -> all other clients
+#define MSG_RENAME         0x04 // client -> server -> all other clients
+#define MSG_PING           0x05 // client -> server
+#define MSG_USER_LIST_REQ  0x06 // client -> server
 
-#define MSG_WELCOME        0x10	// server -> client; confirm join, return session_id
-#define MSG_ERROR          0x11	// server -> client; carry error w/ payload
-#define MSG_USER_LIST      0x12	// server -> client
-#define MSG_PONG           0x13	// server -> client
+#define MSG_WELCOME        0x10 // server -> client; confirm join, return session_id
+#define MSG_ERROR          0x11 // server -> client; carry error w/ payload
+#define MSG_USER_LIST      0x12 // server -> client
+#define MSG_PONG           0x13 // server -> client
 
 //--============
 // -- CONSTS
@@ -44,9 +44,9 @@
 
 #define HEADER_SIZE (sizeof(msg_t))
 
-#define MAX_PAYLOAD    4096	// bytes
-#define MAX_USERNAME   32	// chars
-#define MAX_SESSION_ID 64	// len
+#define MAX_PAYLOAD    4096 // bytes
+#define MAX_USERNAME   32   // chars
+#define MAX_SESSION_ID 64   // len
 
 //--============
 // -- STRUCTS
@@ -61,9 +61,9 @@ typedef enum __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
 	uint64_t timestamp; // timestamp: unix epoch ms, from server
-	uint32_t seq;		// seq: message sequence #; client sends 0
-	uint16_t len;		// len: payload (Bytes, MSB)
-	uint8_t type;		// type: current opcode
-	uint8_t flags;		// flags: TODO: use this for compression later
+	uint32_t seq;       // seq: message sequence #; client sends 0
+	uint16_t len;       // len: payload (Bytes, MSB)
+	uint8_t type;       // type: current opcode
+	uint8_t flags;      // flags: TODO: use this for compression later
 	char payload[];
 } msg_t;
