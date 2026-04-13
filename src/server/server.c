@@ -75,18 +75,16 @@ static server_client_t *client_by_sock(SOCKET sock)
 	return NULL;
 }
 
-/// @brief Queue a message
+/// @param Mark client as writable for flushing
 /// @param c
-/// @param type
-/// @param flags
-/// @param payload
-/// @param len
-/// @return msg_status_t
-static msg_status_t client_enqueue(server_client_t *c, uint8_t type, uint8_t flags,
-		const void *payload, uint16_t len)
+static void client_mark_writable(server_client_t *c)
 {
-	return msg_enqueue(c->sendbuf, &c->send_head, &c->send_tail, &c->send_len,
-			SEND_BUF_SIZE, type, flags, payload, len, c->key);
+	for (int i = 1; i < nfds; i++) {
+		if (pfds[i].fd == c->sock) {
+			pfds[i].events |= POLLOUT;
+			return;
+		}
+	}
 }
 
 /// @brief Flush client ring buffer
@@ -103,6 +101,30 @@ static msg_status_t client_flush(server_client_t *c)
 static int client_has_pending(server_client_t *c)
 {
 	return c->send_len > 0;
+}
+
+/// @brief Queue a message
+/// @param c
+/// @param type
+/// @param flags
+/// @param payload
+/// @param len
+/// @return msg_status_t
+static msg_status_t client_enqueue(server_client_t *c, uint8_t type, uint8_t flags, const void *payload, uint16_t len)
+{
+	msg_status_t s = msg_enqueue(c->sendbuf, &c->send_head, &c->send_tail, &c->send_len,
+			SEND_BUF_SIZE, type, flags, payload, len, c->key);
+
+	if (s != MSG_OK)
+		return s;
+
+	if (client_flush(c) == MSG_ERR_IO)
+		return MSG_ERR_IO;
+
+	if (client_has_pending(c))
+		client_mark_writable(c);
+
+	return MSG_OK;
 }
 
 //--================
@@ -409,31 +431,13 @@ void server_run(void)
 				continue;
 			}
 
-			if (pfds[i].revents & POLLIN)
-			{
-				server_client_t *c = client_by_sock(pfds[i].fd);
-				if (c) client_handle(c);
-
-				for (int j = 1; j < nfds; j++)
-				{
-					server_client_t *other = client_by_sock(pfds[j].fd);
-					if (other && client_has_pending(other))
-						client_flush(other);
-				}
-			}
-
 			server_client_t *c = client_by_sock(pfds[i].fd);
 			if (!c) continue;
 
-			if (client_has_pending(c))
-			{
-				if (client_flush(c) == MSG_ERR_IO)
-				{
-					client_remove(pfds[i].fd);
-					continue;
-				}
-			}
-			else if (pfds[i].revents & POLLOUT)
+			if (pfds[i].revents & POLLIN)
+				client_handle(c);
+
+			if (pfds[i].revents & POLLOUT)
 			{
 				if (client_flush(c) == MSG_ERR_IO)
 				{
