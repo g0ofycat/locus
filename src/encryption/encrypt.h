@@ -7,7 +7,7 @@
 // -- CONSTS
 //--============
 
-#define ENCRYPT_OVERHEAD 28  // AES_IV_SIZE + AES_TAG_SIZE
+#define ENCRYPT_OVERHEAD 28	// AES_IV_SIZE + AES_TAG_SIZE
 
 #define AES_KEY_SIZE 32
 #define AES_IV_SIZE 12
