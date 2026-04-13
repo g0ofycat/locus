@@ -11,6 +11,8 @@
 #define PUBKEY_SIZE     65          // uncompressed P-256 point
 #define ECDH_MAGIC      0x314B4345  // ECK1
 
+#define ECDH_KEY_BITS 256           // P-256
+
 //--============
 // -- API
 //--============

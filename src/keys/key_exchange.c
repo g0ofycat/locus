@@ -23,7 +23,7 @@ int key_exchange(SOCKET sock, uint8_t key_out[KEY_SIZE], int is_server) {
 	if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&alg, BCRYPT_ECDH_P256_ALGORITHM, NULL, 0)))
 		goto cleanup;
 
-	if (!BCRYPT_SUCCESS(BCryptGenerateKeyPair(alg, &keypair, 256, 0)))
+	if (!BCRYPT_SUCCESS(BCryptGenerateKeyPair(alg, &keypair, ECDH_KEY_BITS, 0)))
 		goto cleanup;
 
 	if (!BCRYPT_SUCCESS(BCryptFinalizeKeyPair(keypair, 0)))
