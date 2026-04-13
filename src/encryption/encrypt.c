@@ -24,7 +24,6 @@ static BCRYPT_ALG_HANDLE get_alg(void) {
 	alg = h;
 
 	return alg;
-
 }
 
 //--============
@@ -42,9 +41,9 @@ size_t encrypt_data(const uint8_t *key, const void *src, size_t srcSize, void *d
 	if (!key || !src || !dst) return 0;
 	if (dstCapacity < srcSize + ENCRYPT_OVERHEAD) return 0;
 
-	uint8_t *iv  = (uint8_t *)dst;
+	uint8_t *iv = (uint8_t *)dst;
 	uint8_t *tag = iv + AES_IV_SIZE;
-	uint8_t *ct  = tag + AES_TAG_SIZE;
+	uint8_t *ct = tag + AES_TAG_SIZE;
 
 	if (!BCRYPT_SUCCESS(BCryptGenRandom(NULL, iv, AES_IV_SIZE, BCRYPT_USE_SYSTEM_PREFERRED_RNG)))
 		return 0;
@@ -57,12 +56,13 @@ size_t encrypt_data(const uint8_t *key, const void *src, size_t srcSize, void *d
 	BCRYPT_INIT_AUTH_MODE_INFO(info);
 	info.pbNonce = iv;
 	info.cbNonce = AES_IV_SIZE;
-	info.pbTag   = tag;
-	info.cbTag   = AES_TAG_SIZE;
+	info.pbTag = tag;
+	info.cbTag = AES_TAG_SIZE;
 
 	ULONG out_len = 0;
 	NTSTATUS st = BCryptEncrypt(hkey, (PUCHAR)src, (ULONG)srcSize, &info, NULL, 0, ct, (ULONG)srcSize, &out_len, 0);
 	BCryptDestroyKey(hkey);
+
 	return BCRYPT_SUCCESS(st) ? out_len + ENCRYPT_OVERHEAD : 0;
 }
 
