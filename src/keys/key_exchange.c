@@ -5,7 +5,7 @@
 #include <bcrypt.h>
 
 //--============
-// -- API
+// -- PUBLIC
 //--============
 
 /// @brief Generate keypair, send public key, receive peer public key, derive shared secret

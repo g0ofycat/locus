@@ -27,7 +27,7 @@ static BCRYPT_ALG_HANDLE get_alg(void) {
 }
 
 //--============
-// -- API
+// -- PUBLIC
 //--============
 
 /// @brief Encrypt data using AES-256-GCM via Windows BCrypt

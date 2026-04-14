@@ -14,7 +14,7 @@
 #define ECDH_KEY_BITS 256           // P-256
 
 //--============
-// -- API
+// -- PUBLIC
 //--============
 
 /// @brief Generate keypair, send public key, receive peer public key, derive shared secret

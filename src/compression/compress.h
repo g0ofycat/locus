@@ -9,7 +9,7 @@
 #define COMPRESSION_LEVEL 11
 
 //--============
-// -- API
+// -- PUBLIC
 //--============
 
 /// @brief Compress data using zstd

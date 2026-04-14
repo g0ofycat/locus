@@ -14,7 +14,7 @@
 #define AES_TAG_SIZE 16
 
 //--============
-// -- API
+// -- PUBLIC
 //--============
 
 /// @brief Encrypt data using AES-256-GCM

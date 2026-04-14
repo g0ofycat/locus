@@ -16,9 +16,9 @@ static server_client_t clients[MAX_CLIENTS];
 static struct pollfd pfds[MAX_CLIENTS + 1]; // + 1 = listener
 static int nfds = 1;						// pfds[0] = listener
 
-//--================
+//--============
 // -- PRIVATE
-//--================
+//--============
 
 /// @brief Check if element is in array
 /// @param element
@@ -127,9 +127,9 @@ static msg_status_t client_enqueue(server_client_t *c, uint8_t type, uint8_t fla
 	return MSG_OK;
 }
 
-//--================
-// -- API
-//--================
+//--============
+// -- PUBLIC
+//--============
 
 /// @brief Add a newly accepted socket to the client list
 /// @param sock

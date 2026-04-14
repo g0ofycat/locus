@@ -4,7 +4,7 @@
 #include <string.h>
 
 //--============
-// -- API
+// -- PUBLIC
 //--============
 
 /// @brief Compress data using zstd

@@ -33,7 +33,7 @@ typedef struct {
 } server_client_t;
 
 //--============
-// -- API
+// -- PUBLIC
 //--============
 
 /// @brief Add a newly accepted socket to the client list

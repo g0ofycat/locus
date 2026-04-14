@@ -4,6 +4,8 @@
 #include <string.h>
 #include <time.h>
 
+#include "../../parser/message_parser.hpp"
+
 //--================
 // -- PRIVATE
 //--================
@@ -111,14 +113,18 @@ void render_message(client_state_t *c, const char *username, const char *message
 
 	erase_input_line(c);
 
+	char* parsed_msg = parse_message_c(message);
+
 	char ts[16];
-	char line[MAX_USERNAME + MAX_PAYLOAD + 32];
+	char line[MAX_USERNAME + MAX_PAYLOAD + 128];
 
 	time_str(ts, sizeof(ts));
-	snprintf(line, sizeof(line), "%s %s: %s", ts, username, message);
+	snprintf(line, sizeof(line), "%s %s: %s", ts, username, parsed_msg);	
 	print_line(c, line);
 
 	render_input_unlocked(c);
+
+	free(parsed_msg);
 
 	ReleaseMutex(c->render_mutex);
 }
