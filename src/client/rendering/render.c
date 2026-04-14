@@ -119,7 +119,7 @@ void render_message(client_state_t *c, const char *username, const char *message
 	char line[MAX_USERNAME + MAX_PAYLOAD + 128];
 
 	time_str(ts, sizeof(ts));
-	snprintf(line, sizeof(line), "%s %s: %s", ts, username, parsed_msg);	
+	snprintf(line, sizeof(line), "%s %s: %s", ts, username, parsed_msg);
 	print_line(c, line);
 
 	render_input_unlocked(c);
