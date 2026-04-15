@@ -1,14 +1,14 @@
-#include "render.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
+#include "render.h"
+
 #include "../../parser/message_parser.hpp"
 
-//--================
+//--============
 // -- PRIVATE
-//--================
+//--============
 
 /// @brief Get current time as [HH:MM] string
 /// @param out
@@ -62,9 +62,9 @@ static void render_input_unlocked(client_state_t *c) {
 	WriteConsole(c->hout, line, (DWORD)strlen(line), &written, NULL);
 }
 
-//--================
-// -- API
-//--================
+//--============
+// -- PUBLIC
+//--============
 
 /// @brief Enter raw terminal mode, draw initial UI chrome
 /// @param c: Client state

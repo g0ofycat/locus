@@ -7,9 +7,9 @@
 #include "./rendering/render.h"
 #include "../keys/key_exchange.h"
 
-//--================
+//--============
 // -- PRIVATE
-//--================
+//--============
 
 /// @brief Handle client state
 /// @param arg
@@ -87,9 +87,9 @@ static DWORD WINAPI recv_thread(void *arg)
 	return 0;
 }
 
-//--================
-// -- API
-//--================
+//--============
+// -- PUBLIC
+//--============
 
 /// @brief Connect to server, perform MSG_JOIN handshake
 /// @param c: Caller-allocated client state

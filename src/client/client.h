@@ -32,7 +32,7 @@ typedef struct {
 } client_state_t;
 
 //--============
-// -- API
+// -- PUBLIC
 //--============
 
 /// @brief Connect to server, perform MSG_JOIN handshake

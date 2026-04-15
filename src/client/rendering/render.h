@@ -3,7 +3,7 @@
 #include "../client.h"
 
 //--============
-// -- API
+// -- PUBLIC
 //--============
 
 /// @brief Enter raw terminal mode, draw initial UI chrome

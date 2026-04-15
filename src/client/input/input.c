@@ -4,9 +4,9 @@
 #include "input.h"
 #include "../rendering/render.h"
 
-//--================
+//--============
 // -- PRIVATE
-//--================
+//--============
 
 /// @brief Command Type Dispatch
 /// @param c
@@ -66,9 +66,9 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 	}
 }
 
-//--================
-// -- API
-//--================
+//--============
+// -- PUBLIC
+//--============
 
 /// @brief Initialize input buffer state
 /// @param c: Client state

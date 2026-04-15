@@ -28,7 +28,7 @@ typedef struct {
 } cmd_t;
 
 //--============
-// -- API
+// -- PUBLIC
 //--============
 
 /// @brief Initialize input buffer state

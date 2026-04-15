@@ -6,6 +6,7 @@
 #include <time.h>
 
 #include "server.h"
+#include "db/msg_db.hpp"
 #include "../keys/key_exchange.h"
 
 //--================
@@ -125,6 +126,14 @@ static msg_status_t client_enqueue(server_client_t *c, uint8_t type, uint8_t fla
 		client_mark_writable(c);
 
 	return MSG_OK;
+}
+
+/// @brief Render all messages from the current port database
+/// @param entry
+/// @param user_data
+static void client_join_callback(const db_entry* entry, void* user_data) {
+	server_client_t *c = user_data;
+	client_enqueue(c, MSG_CHAT, 0, entry->payload, entry->payload_len);
 }
 
 //--============
@@ -265,6 +274,7 @@ void client_handle(server_client_t *c)
 
 				msg_send(c->sock, MSG_WELCOME, 0, c->session_id, (uint16_t)strlen(c->session_id) + 1, c->key);
 				broadcast(c->sock, MSG_JOIN, c->username, (uint16_t)strlen(c->username) + 1);
+				for_each_message_c(SERVER_PORT, client_join_callback, c);
 				break;
 			}
 		case MSG_CHAT:
@@ -276,7 +286,10 @@ void client_handle(server_client_t *c)
 
 				memcpy(payload, c->username, ulen);
 				memcpy(payload + ulen, msg_text, mlen);
-				broadcast(c->sock, MSG_CHAT, payload, (uint16_t)(ulen + mlen));
+
+				uint16_t payload_len = (uint16_t)(ulen + mlen);
+				insert_message_c(SERVER_PORT, payload, payload_len);
+				broadcast(c->sock, MSG_CHAT, payload, payload_len);
 				break;
 			}
 		case MSG_LEAVE:

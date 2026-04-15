@@ -10,6 +10,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(zstd CONFIG REQUIRED)
 
 add_executable(locus_server
+	src/parser/message_parser.cpp
+
 	src/keys/key_exchange.c
 
 	src/compression/compress.c
@@ -18,9 +20,13 @@ add_executable(locus_server
 	main/server/server.c
 	src/io/msg_io.c
 	src/server/server.c
+	src/server/db/msg_db.cpp
+
+	src/client/rendering/render.c
 )
 
 target_include_directories(locus_server PRIVATE
+	src/parser
 	src/keys
 	src/utils
 	src/compression
@@ -28,6 +34,9 @@ target_include_directories(locus_server PRIVATE
 	src/protocol
 	src/io
 	src/server
+	src/server/db
+
+	src/client/rendering
 )
 
 target_link_libraries(locus_server PRIVATE ws2_32 bcrypt zstd::libzstd_static)
