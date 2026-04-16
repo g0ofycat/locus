@@ -113,22 +113,23 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 		return MSG_ERR_IO;
 	}
 
-	c->sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (c->sock == INVALID_SOCKET)
+	struct addrinfo hints = { .ai_family = AF_INET, .ai_socktype = SOCK_STREAM };
+	struct addrinfo *res;
+	if (getaddrinfo(host, NULL, &hints, &res) != 0)
 	{
-		fprintf(stderr, "[client]: socket failed: %d\n", WSAGetLastError());
+		fprintf(stderr, "[client]: failed to resolve host: %s\n", host);
 		WSACleanup();
 		return MSG_ERR_IO;
 	}
 
-	struct sockaddr_in addr = {
-		.sin_family = AF_INET,
-		.sin_port = htons(port),
-	};
-	if (inet_pton(AF_INET, host, &addr.sin_addr) != 1)
+	struct sockaddr_in addr = *(struct sockaddr_in *)res->ai_addr;
+	addr.sin_port = htons(port);
+	freeaddrinfo(res);
+
+	c->sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (c->sock == INVALID_SOCKET)
 	{
-		fprintf(stderr, "[client]: invalid address: %s\n", host);
-		closesocket(c->sock);
+		fprintf(stderr, "[client]: socket failed: %d\n", WSAGetLastError());
 		WSACleanup();
 		return MSG_ERR_IO;
 	}
@@ -141,7 +142,8 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 		return MSG_ERR_IO;
 	}
 
-	if (key_exchange(c->sock, c->key, 0) != 0) {
+	if (key_exchange(c->sock, c->key, 0) != 0)
+	{
 		fprintf(stderr, "[client]: key exchange failed\n");
 		closesocket(c->sock);
 		WSACleanup();

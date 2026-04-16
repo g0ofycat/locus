@@ -64,7 +64,13 @@ RESET);
 	fprintf(stderr, PINK "					- chat commands:\n" RESET);
 	fprintf(stderr, GREY "						- rename username: /rename <new_name>\n" RESET);
 	fprintf(stderr, GREY "						- list current clients in port: /users\n" RESET);
-	fprintf(stderr, GREY "						- leave current chat: /quit\n" RESET);
+	fprintf(stderr, GREY "						- leave current chat: /quit\n\n" RESET);
+
+	fprintf(stderr, PINK "					- chat formatting:\n" RESET);
+	fprintf(stderr, GREY "						- * = italic\n" RESET);
+	fprintf(stderr, GREY "						- ** = bold\n" RESET);
+	fprintf(stderr, GREY "						- __ = underline\n" RESET);
+	fprintf(stderr, GREY "						- ~~ = strikethrough\n" RESET);
 }
 
 /// @brief Run
