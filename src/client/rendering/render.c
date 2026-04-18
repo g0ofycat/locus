@@ -31,14 +31,21 @@ static void erase_input_line(client_state_t *c) {
 	CONSOLE_SCREEN_BUFFER_INFO info;
 	GetConsoleScreenBufferInfo(c->hout, &info);
 
+	int input_len = (int)strlen(c->input_buf) + 2;
+	int width = info.dwSize.X;
+	int rows = (input_len + width - 1) / width;
+	if (rows < 1) rows = 1;
+
 	COORD pos = {
 		.X = 0,
-		.Y = info.dwCursorPosition.Y,
+		.Y = (SHORT)(info.dwCursorPosition.Y - (rows - 1)),
 	};
+	if (pos.Y < 0) pos.Y = 0;
+
 	SetConsoleCursorPosition(c->hout, pos);
 
 	DWORD written;
-	FillConsoleOutputCharacter(c->hout, ' ', info.dwSize.X, pos, &written);
+	FillConsoleOutputCharacter(c->hout, ' ', width * rows, pos, &written);
 	SetConsoleCursorPosition(c->hout, pos);
 }
 
