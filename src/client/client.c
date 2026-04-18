@@ -35,7 +35,7 @@ static DWORD WINAPI recv_thread(void *arg)
 				{
 					char *username = msg->payload;
 					char *message = msg->payload + strlen(msg->payload) + 1;
-					render_message(c, username, message);
+					render_message(c, username, message, msg->id);
 					break;
 				}
 			case MSG_JOIN:
@@ -151,7 +151,7 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 	}
 
 	uint16_t ulen = (uint16_t)(strlen(username) + 1);
-	if (msg_send(c->sock, MSG_JOIN, 0, username, ulen, c->key) != MSG_OK)
+	if (msg_send(c->sock, MSG_JOIN, username, ulen, 0, c->key) != MSG_OK)
 	{
 		fprintf(stderr, "[client]: MSG_JOIN failed\n");
 		closesocket(c->sock);
@@ -219,7 +219,7 @@ void client_disconnect(client_state_t *c)
 {
 	if (c->sock != INVALID_SOCKET)
 	{
-		msg_send(c->sock, MSG_LEAVE, 0, c->username, (uint16_t)(strlen(c->username) + 1), c->key);
+		msg_send(c->sock, MSG_LEAVE, c->username, (uint16_t)(strlen(c->username) + 1), 0, c->key);
 		closesocket(c->sock);
 		c->sock = INVALID_SOCKET;
 	}

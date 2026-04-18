@@ -25,7 +25,7 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 				memcpy(payload, c->username, ulen);
 				memcpy(payload + ulen, c->input_buf, mlen);
 
-				msg_send(c->sock, MSG_CHAT, 0, payload, (uint16_t)(ulen + mlen), c->key);
+				msg_send(c->sock, MSG_CHAT, payload, (uint16_t)(ulen + mlen), 0, c->key);
 				break;
 			}
 		case CMD_TYPE_RENAME:
@@ -45,12 +45,12 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 
 				uint16_t len = (uint16_t)(olen + nlen);
 
-				msg_send(c->sock, MSG_RENAME, 0, payload, len, c->key);
+				msg_send(c->sock, MSG_RENAME, payload, len, 0, c->key);
 				break;
 			}
 		case CMD_TYPE_USERS:
 			{
-				msg_send(c->sock, MSG_USER_LIST_REQ, 0, NULL, 0, c->key);
+				msg_send(c->sock, MSG_USER_LIST_REQ, NULL, 0, 0, c->key);
 				break;
 			}
 		case CMD_TYPE_QUIT:

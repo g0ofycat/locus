@@ -15,7 +15,8 @@ static uint64_t msg_idx = 0;
 /// @param port: Port to push messages to
 /// @param message: Message to store
 /// @param message_len: Message length
-extern "C" void insert_message_c(int port, const char* message, uint16_t message_len) {
+/// @return uint64_t: Message ID
+extern "C" uint64_t insert_message_c(int port, const char* message, uint16_t message_len) {
 	db_entry entry{};
 
 	entry.id = msg_idx++;
@@ -25,6 +26,8 @@ extern "C" void insert_message_c(int port, const char* message, uint16_t message
 	std::memcpy(entry.payload, message, message_len);
 
 	port_messages[port].push_back(entry);
+
+	return entry.id;
 }
 
 /// @brief Iterate through each message

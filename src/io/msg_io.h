@@ -25,12 +25,12 @@ typedef enum {
 /// @brief Serialize and send a complete framed message over a socket
 /// @param sock: Destination socket
 /// @param type: Protocol opcode
-/// @param flags: TODO: make flags
 /// @param payload: Pointer to payload bytes, NULL if empty (MSG_PING, MSG_PONG)
 /// @param len: Payload length in bytes
+/// @param id: Message ID
 /// @param key: 32-byte AES-256-GCM encryption key
 /// @return MSG_OK on success, MSG_ERR_IO on disconnect or send error
-msg_status_t msg_send(SOCKET sock, uint8_t type, uint8_t flags, const void *payload, uint16_t len, const uint8_t *key);
+msg_status_t msg_send(SOCKET sock, uint8_t type, const void *payload, uint16_t len, uint64_t id, const uint8_t *key);
 
 /// @brief Read a complete framed message from a socket into buf
 /// @param sock: Source socket
@@ -47,14 +47,14 @@ msg_status_t msg_recv(SOCKET sock, msg_t *buf, size_t bufsz, const uint8_t *key)
 /// @param pending: Bytes pending in ring
 /// @param ring_size: Total ring capacity in bytes
 /// @param type: Protocol opcode
-/// @param flags: TODO: make flags
 /// @param payload: Pointer to payload bytes, NULL if empty
 /// @param len: Payload length in bytes
+/// @param id: Message ID
 /// @param key: 32-byte AES-256-GCM encryption key
 /// @return MSG_OK on success, MSG_ERR_FRAME on bad args, MSG_ERR_FULL if ring lacks space
 msg_status_t msg_enqueue(uint8_t *ring, int *head, int *tail, int *pending,
-		int ring_size, uint8_t type, uint8_t flags,
-		const void *payload, uint16_t len, const uint8_t *key);
+		int ring_size, uint8_t type, const void *payload, uint16_t len,
+		uint64_t id, const uint8_t *key);
 
 /// @brief Drain as much of the ring as possible via non-blocking send()
 /// @param sock: Destination socket

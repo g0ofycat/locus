@@ -18,6 +18,7 @@ int key_exchange(SOCKET sock, uint8_t key_out[KEY_SIZE], int is_server) {
 	BCRYPT_KEY_HANDLE keypair = NULL;
 	BCRYPT_KEY_HANDLE peer_key = NULL;
 	BCRYPT_SECRET_HANDLE secret = NULL;
+
 	int result = -1;
 
 	if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&alg, BCRYPT_ECDH_P256_ALGORITHM, NULL, 0)))

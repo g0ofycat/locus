@@ -107,14 +107,14 @@ static int client_has_pending(server_client_t *c)
 /// @brief Queue a message
 /// @param c
 /// @param type
-/// @param flags
 /// @param payload
 /// @param len
+/// @param id
 /// @return msg_status_t
-static msg_status_t client_enqueue(server_client_t *c, uint8_t type, uint8_t flags, const void *payload, uint16_t len)
+static msg_status_t client_enqueue(server_client_t *c, uint8_t type, const void *payload, uint16_t len, uint64_t id)
 {
 	msg_status_t s = msg_enqueue(c->sendbuf, &c->send_head, &c->send_tail, &c->send_len,
-			SEND_BUF_SIZE, type, flags, payload, len, c->key);
+			SEND_BUF_SIZE, type, payload, len, id, c->key);
 
 	if (s != MSG_OK)
 		return s;
@@ -133,7 +133,7 @@ static msg_status_t client_enqueue(server_client_t *c, uint8_t type, uint8_t fla
 /// @param user_data
 static void client_join_callback(const db_entry* entry, void* user_data) {
 	server_client_t *c = user_data;
-	client_enqueue(c, MSG_CHAT, 0, entry->payload, entry->payload_len);
+	client_enqueue(c, MSG_CHAT, entry->payload, entry->payload_len, entry->id);
 }
 
 //--============
@@ -193,7 +193,7 @@ void client_remove(SOCKET sock)
 	{
 		char payload[MAX_USERNAME];
 		snprintf(payload, MAX_USERNAME, "%s", c->username);
-		broadcast(sock, MSG_LEAVE, payload, (uint16_t)strlen(payload) + 1);
+		broadcast(sock, MSG_LEAVE, payload, (uint16_t)strlen(payload) + 1, 0);
 	}
 
 	closesocket(sock);
@@ -216,8 +216,9 @@ void client_remove(SOCKET sock)
 /// @param type: Protocol Opcode
 /// @param payload: Data
 /// @param len: Length of payload
+/// @param id: Message ID
 /// @param sender_sock: Pass INVALID_SOCKET to broadcast to everyone
-void broadcast(SOCKET sender_sock, uint8_t type, const void *payload, uint16_t len)
+void broadcast(SOCKET sender_sock, uint8_t type, const void *payload, uint16_t len, uint64_t id)
 {
 	static const uint8_t bypass_opcodes[] = { 0x01, 0x02, 0x04, 0x10 };
 
@@ -230,7 +231,7 @@ void broadcast(SOCKET sender_sock, uint8_t type, const void *payload, uint16_t l
 		if (!clients[i].joined)
 			continue;
 
-		client_enqueue(&clients[i], type, 0, payload, len);
+		client_enqueue(&clients[i], type, payload, len, id);
 	}
 }
 
@@ -250,7 +251,7 @@ void client_handle(server_client_t *c)
 	if (!c->joined && msg->type != MSG_JOIN)
 	{
 		error_code_t err = ERR_NOT_JOINED;
-		msg_send(c->sock, MSG_ERROR, 0, &err, sizeof(err), c->key);
+		msg_send(c->sock, MSG_ERROR, &err, sizeof(err), 0, c->key);
 		return;
 	}
 
@@ -264,7 +265,7 @@ void client_handle(server_client_t *c)
 				if (username_taken(username))
 				{
 					error_code_t err = ERR_USERNAME_TAKEN;
-					msg_send(c->sock, MSG_ERROR, 0, &err, sizeof(err), c->key);
+					msg_send(c->sock, MSG_ERROR, &err, sizeof(err), 0, c->key);
 					return;
 				}
 
@@ -272,8 +273,8 @@ void client_handle(server_client_t *c)
 				session_id_generate(c->session_id);
 				c->joined = 1;
 
-				msg_send(c->sock, MSG_WELCOME, 0, c->session_id, (uint16_t)strlen(c->session_id) + 1, c->key);
-				broadcast(c->sock, MSG_JOIN, c->username, (uint16_t)strlen(c->username) + 1);
+				msg_send(c->sock, MSG_WELCOME, c->session_id, (uint16_t)strlen(c->session_id) + 1, 0, c->key);
+				broadcast(c->sock, MSG_JOIN, c->username, (uint16_t)strlen(c->username) + 1, 0);
 				for_each_message_c(SERVER_PORT, client_join_callback, c);
 				break;
 			}
@@ -282,14 +283,15 @@ void client_handle(server_client_t *c)
 				char *msg_text = msg->payload + strlen(msg->payload) + 1;
 				int ulen = (int)strlen(c->username) + 1;
 				int mlen = (int)strlen(msg_text) + 1;
-				char payload[MAX_USERNAME + MAX_PAYLOAD];
 
+				char payload[MAX_USERNAME + MAX_PAYLOAD];
 				memcpy(payload, c->username, ulen);
 				memcpy(payload + ulen, msg_text, mlen);
 
 				uint16_t payload_len = (uint16_t)(ulen + mlen);
-				insert_message_c(SERVER_PORT, payload, payload_len);
-				broadcast(c->sock, MSG_CHAT, payload, payload_len);
+				uint64_t msg_id = insert_message_c(SERVER_PORT, payload, payload_len);
+
+				broadcast(c->sock, MSG_CHAT, payload, payload_len, msg_id);
 				break;
 			}
 		case MSG_LEAVE:
@@ -305,7 +307,7 @@ void client_handle(server_client_t *c)
 				if (username_taken(new_name))
 				{
 					error_code_t err = ERR_USERNAME_TAKEN;
-					msg_send(c->sock, MSG_ERROR, 0, &err, sizeof(err), c->key);
+					msg_send(c->sock, MSG_ERROR, &err, sizeof(err), 0, c->key);
 					return;
 				}
 
@@ -315,12 +317,12 @@ void client_handle(server_client_t *c)
 				snprintf(payload + olen, MAX_USERNAME, "%s", new_name);
 
 				snprintf(c->username, MAX_USERNAME, "%s", new_name);
-				broadcast(c->sock, MSG_RENAME, payload, (uint16_t)(olen + strlen(new_name) + 1));
+				broadcast(c->sock, MSG_RENAME, payload, (uint16_t)(olen + strlen(new_name) + 1), 0);
 				break;
 			}
 		case MSG_PING:
 			{
-				client_enqueue(c, MSG_PONG, 0, NULL, 0);
+				client_enqueue(c, MSG_PONG, NULL, 0, 0);
 				break;
 			}
 		case MSG_USER_LIST_REQ:
@@ -346,13 +348,13 @@ void client_handle(server_client_t *c)
 				}
 
 				payload[0] = (char)count;
-				client_enqueue(c, MSG_USER_LIST, 0, payload, (uint16_t)offset);
+				client_enqueue(c, MSG_USER_LIST, payload, (uint16_t)offset, 0);
 				break;
 			}
 		default:
 			{
 				error_code_t err = ERR_BAD_FRAME;
-				client_enqueue(c, MSG_ERROR, 0, &err, sizeof(err));
+				client_enqueue(c, MSG_ERROR, &err, sizeof(err), 0);
 				break;
 			}
 	}

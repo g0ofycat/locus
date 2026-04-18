@@ -26,19 +26,19 @@ static void ring_write(uint8_t *ring, int *tail, int ring_size, const void *src,
 /// @brief Serialize and send a complete framed message over a socket
 /// @param sock: Destination socket
 /// @param type: Protocol opcode
-/// @param flags: TODO: make flags
 /// @param payload: Pointer to payload bytes, NULL if empty (MSG_PING, MSG_PONG)
 /// @param len: Payload length in bytes
+/// @param id: Message ID
 /// @param key: 32-byte AES-256-GCM encryption key
 /// @return MSG_OK on success, MSG_ERR_IO on disconnect or send error
-msg_status_t msg_send(SOCKET sock, uint8_t type, uint8_t flags, const void *payload, uint16_t len, const uint8_t *key) {
+msg_status_t msg_send(SOCKET sock, uint8_t type, const void *payload, uint16_t len, uint64_t id, const uint8_t *key) {
 	if (len > MAX_PAYLOAD) return MSG_ERR_FRAME;
 	if (len > 0 && payload == NULL) return MSG_ERR_FRAME;
 
 	uint8_t buf[HEADER_SIZE + MAX_PAYLOAD + ENCRYPT_OVERHEAD];
 	msg_t *msg = (msg_t *)buf;
+	msg->id = id;
 	msg->type = type;
-	msg->flags = flags;
 	msg->seq = 0;
 	msg->timestamp = 0;
 
@@ -103,14 +103,14 @@ msg_status_t msg_recv(SOCKET sock, msg_t *buf, size_t bufsz, const uint8_t *key)
 /// @param pending: Bytes pending in ring
 /// @param ring_size: Total ring capacity in bytes
 /// @param type: Protocol opcode
-/// @param flags: TODO: make flags
 /// @param payload: Pointer to payload bytes, NULL if empty
 /// @param len: Payload length in bytes
+/// @param id: Message ID
 /// @param key: 32-byte AES-256-GCM encryption key
 /// @return MSG_OK on success, MSG_ERR_FRAME on bad args, MSG_ERR_FULL if ring lacks space
 msg_status_t msg_enqueue(uint8_t *ring, int *head, int *tail, int *pending,
-		int ring_size, uint8_t type, uint8_t flags,
-		const void *payload, uint16_t len, const uint8_t *key)
+		int ring_size, uint8_t type, const void *payload, uint16_t len,
+		uint64_t id, const uint8_t *key)
 {
 	if (len > MAX_PAYLOAD) return MSG_ERR_FRAME;
 	if (len > 0 && payload == NULL) return MSG_ERR_FRAME;
@@ -120,8 +120,8 @@ msg_status_t msg_enqueue(uint8_t *ring, int *head, int *tail, int *pending,
 
 		uint8_t hdr[HEADER_SIZE];
 		msg_t *h = (msg_t *)hdr;
+		h->id = id;
 		h->type = type;
-		h->flags = flags;
 		h->len = 0;
 		h->seq = 0;
 		h->timestamp = 0;
@@ -145,7 +145,7 @@ msg_status_t msg_enqueue(uint8_t *ring, int *head, int *tail, int *pending,
 	uint8_t hdr[HEADER_SIZE];
 	msg_t *h = (msg_t *)hdr;
 	h->type = type;
-	h->flags = flags;
+	h->id = id;
 	h->len = htons((uint16_t)encrypted_len);
 	h->seq = 0;
 	h->timestamp = 0;

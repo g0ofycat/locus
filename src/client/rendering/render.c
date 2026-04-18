@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <inttypes.h>
 #include <string.h>
 #include <time.h>
 
@@ -108,7 +109,8 @@ void render_input(client_state_t *c) {
 /// @param c: Client state
 /// @param username: Sender username
 /// @param message: Message content
-void render_message(client_state_t *c, const char *username, const char *message) {
+/// @param id: Message ID from database
+void render_message(client_state_t *c, const char *username, const char *message, const uint64_t id) {
 	WaitForSingleObject(c->render_mutex, INFINITE);
 
 	erase_input_line(c);
@@ -119,7 +121,7 @@ void render_message(client_state_t *c, const char *username, const char *message
 	char line[MAX_USERNAME + MAX_PAYLOAD + 128];
 
 	time_str(ts, sizeof(ts));
-	snprintf(line, sizeof(line), "%s %s: %s", ts, username, parsed_msg);
+	snprintf(line, sizeof(line), "%s %s: %s" DARK_GREY " { id: %" PRIu64 " }" RESET, ts, username, parsed_msg, id);
 	print_line(c, line);
 
 	render_input_unlocked(c);

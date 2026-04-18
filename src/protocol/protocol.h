@@ -61,9 +61,9 @@ typedef enum __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
 	uint64_t timestamp; // timestamp: unix epoch ms, from server
+	uint64_t id;        // id: msg_id
 	uint32_t seq;       // seq: message sequence #; client sends 0
 	uint16_t len;       // len: payload (Bytes, MSB)
 	uint8_t type;       // type: current opcode
-	uint8_t flags;      // flags: TODO: use this for compression later
 	char payload[];
 } msg_t;

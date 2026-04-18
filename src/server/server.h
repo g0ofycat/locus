@@ -50,8 +50,9 @@ void client_remove(SOCKET sock);
 /// @param type: Protocol Opcode
 /// @param payload: Data
 /// @param len: Length of payload
+/// @param id: Message ID
 /// @param sender_sock: Pass INVALID_SOCKET to broadcast to everyone
-void broadcast(SOCKET sender_sock, uint8_t type, const void *payload, uint16_t len);
+void broadcast(SOCKET sender_sock, uint8_t type, const void *payload, uint16_t len, uint64_t id);
 
 /// @brief Read and dispatch one message from a client
 /// @param c: Message

@@ -36,7 +36,8 @@ extern "C" {
 	/// @param port: Port to push messages to
 	/// @param message: Message to store
 	/// @param message_len: Message length
-	void insert_message_c(int port, const char* message, uint16_t message_len);
+	/// @return uint64_t: Message ID
+	uint64_t insert_message_c(int port, const char* message, uint16_t message_len);
 
 	/// @brief Iterate through each message
 	/// @param port: Port to get messages of

@@ -3,6 +3,13 @@
 #include "../client.h"
 
 //--============
+// -- CONST
+//--============
+
+#define DARK_GREY "\033[90m"
+#define RESET "\033[0m"
+
+//--============
 // -- PUBLIC
 //--============
 
@@ -22,7 +29,8 @@ void render_input(client_state_t *c);
 /// @param c: Client state
 /// @param username: Sender username
 /// @param message: Message content
-void render_message(client_state_t *c, const char *username, const char *message);
+/// @param id: Message ID from database
+void render_message(client_state_t *c, const char *username, const char *message, const uint64_t id);
 
 /// @brief Erase input line, print system notice, redraw input line
 /// @param c: Client state
