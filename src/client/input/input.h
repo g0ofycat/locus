@@ -7,8 +7,9 @@
 //--============
 
 #define CMD_RENAME "/rename"
-#define CMD_USERS "/users"
-#define CMD_QUIT "/quit"
+#define CMD_USERS  "/users"
+#define CMD_REPLY  "/reply"
+#define CMD_QUIT   "/quit"
 
 //--============
 // -- STRUCTS
@@ -18,12 +19,15 @@ typedef enum {
 	CMD_TYPE_CHAT,    // MSG_CHAT
 	CMD_TYPE_RENAME,  // /rename <new>
 	CMD_TYPE_USERS,   // /users
+	CMD_TYPE_REPLY,   // /reply <id> <msg>
 	CMD_TYPE_QUIT,    // /quit
 	CMD_TYPE_UNKNOWN
 } cmd_type_t;
 
 typedef struct {
-	char arg[MAX_USERNAME]; // CMD_TYPE_RENAME
+	char arg[MAX_USERNAME];    // CMD_TYPE_RENAME
+	char msg[INPUT_BUF_SIZE];  // CMD_TYPE_REPLY message body
+	uint64_t reply_id;         // CMD_TYPE_REPLY target id
 	cmd_type_t type;
 } cmd_t;
 

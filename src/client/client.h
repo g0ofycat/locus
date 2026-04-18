@@ -10,6 +10,9 @@
 // -- CONSTS
 //--============
 
+#define MSG_CACHE_SIZE 512
+#define MSG_CACHE_SNIP 128
+
 #define INPUT_BUF_SIZE 512
 #define SERVER_DEFAULT_PORT 6969
 
@@ -18,6 +21,13 @@
 //--============
 
 typedef struct {
+	uint64_t id;
+	char username[MAX_USERNAME];
+	char text[MSG_CACHE_SNIP];
+} cached_msg_t;  // for 0x07
+
+typedef struct {
+	cached_msg_t msg_cache[MSG_CACHE_SIZE];
 	uint8_t key[32];                // encryption
 	char input_buf[INPUT_BUF_SIZE]; // current line being typed
 	char session_id[MAX_SESSION_ID];
@@ -27,6 +37,7 @@ typedef struct {
 	HANDLE render_mutex;            // for rendering chats
 	SOCKET sock;
 	int input_len;                  // cursor position / length
+	int msg_cache_next;             // next msg for reply
 	DWORD original_mode;            // restored on exit
 	volatile int running;           // 0 = threads should exit
 } client_state_t;

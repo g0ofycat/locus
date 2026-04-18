@@ -32,6 +32,7 @@
 #define MSG_RENAME         0x04 // client -> server -> all other clients
 #define MSG_PING           0x05 // client -> server
 #define MSG_USER_LIST_REQ  0x06 // client -> server
+#define MSG_REPLY          0x07 // client -> server
 
 #define MSG_WELCOME        0x10 // server -> client; confirm join, return session_id
 #define MSG_ERROR          0x11 // server -> client; carry error w/ payload

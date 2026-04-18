@@ -110,24 +110,28 @@ void render_input(client_state_t *c) {
 /// @param username: Sender username
 /// @param message: Message content
 /// @param id: Message ID from database
-void render_message(client_state_t *c, const char *username, const char *message, const uint64_t id) {
+/// @param reply_username: Username of reply
+/// @param reply_text: Username of text
+void render_message(client_state_t *c, const char *username, const char *message, uint64_t id, const char *reply_username, const char *reply_text)
+{
 	WaitForSingleObject(c->render_mutex, INFINITE);
-
 	erase_input_line(c);
 
-	char* parsed_msg = parse_message_c(message);
+	if (reply_username && reply_text) {
+		char quote[MAX_USERNAME + MSG_CACHE_SNIP + 16];
+		snprintf(quote, sizeof(quote), REPLY_GREY "> \"%s: %s\"" RESET, reply_username, reply_text);
+		print_line(c, quote);
+	}
 
-	char ts[16];
-	char line[MAX_USERNAME + MAX_PAYLOAD + 128];
-
+	char *parsed_msg = parse_message_c(message);
+	char ts[16], line[MAX_USERNAME + MAX_PAYLOAD + 128];
 	time_str(ts, sizeof(ts));
-	snprintf(line, sizeof(line), "%s %s: %s" DARK_GREY " { id: %" PRIu64 " }" RESET, ts, username, parsed_msg, id);
+	snprintf(line, sizeof(line), "%s %s: %s" DARK_GREY " { id: %" PRIu64 " }" RESET,
+			ts, username, parsed_msg, id);
 	print_line(c, line);
 
 	render_input_unlocked(c);
-
 	free(parsed_msg);
-
 	ReleaseMutex(c->render_mutex);
 }
 

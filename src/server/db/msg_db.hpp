@@ -24,6 +24,7 @@ extern "C" {
 		char payload[INPUT_BUF_SIZE];
 		uint64_t id;
 		uint16_t payload_len;
+		uint8_t type;
 	} db_entry;
 
 	typedef void (*msg_callback)(const db_entry* entry, void* user_data);
@@ -31,6 +32,14 @@ extern "C" {
 	//--============
 	// -- msg_db
 	//--============
+
+	/// @brief Insert a payload into the database
+	/// @param port: Port to push messages to
+	/// @param type: Type of payload
+	/// @param payload: Payload to store
+	/// @param len: Payload length
+	/// @return uint64_t: Message ID
+	uint64_t insert_message_ex_c(uint16_t port, uint8_t type, const void *payload, uint16_t len);
 
 	/// @brief Insert a message into the database
 	/// @param port: Port to push messages to

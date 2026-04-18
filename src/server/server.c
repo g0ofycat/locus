@@ -49,6 +49,7 @@ static void session_id_generate(char *out)
 
 /// @brief Username taken
 /// @param username
+/// @return 0 on find, 1 on taken
 static int username_taken(const char *username)
 {
 	for (int i = 0; i < MAX_CLIENTS; i++)
@@ -65,6 +66,7 @@ static int username_taken(const char *username)
 
 // @brief Get client based on the socket
 /// @param sock
+/// @return server_client_t
 static server_client_t *client_by_sock(SOCKET sock)
 {
 	for (int i = 0; i < MAX_CLIENTS; i++)
@@ -133,7 +135,7 @@ static msg_status_t client_enqueue(server_client_t *c, uint8_t type, const void 
 /// @param user_data
 static void client_join_callback(const db_entry* entry, void* user_data) {
 	server_client_t *c = user_data;
-	client_enqueue(c, MSG_CHAT, entry->payload, entry->payload_len, entry->id);
+	client_enqueue(c, entry->type, entry->payload, entry->payload_len, entry->id);
 }
 
 //--============
@@ -220,7 +222,7 @@ void client_remove(SOCKET sock)
 /// @param sender_sock: Pass INVALID_SOCKET to broadcast to everyone
 void broadcast(SOCKET sender_sock, uint8_t type, const void *payload, uint16_t len, uint64_t id)
 {
-	static const uint8_t bypass_opcodes[] = { 0x01, 0x02, 0x04, 0x10 };
+	static const uint8_t bypass_opcodes[] = { 0x01, 0x02, 0x04, 0x07, 0x10 };
 
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
@@ -320,11 +322,6 @@ void client_handle(server_client_t *c)
 				broadcast(c->sock, MSG_RENAME, payload, (uint16_t)(olen + strlen(new_name) + 1), 0);
 				break;
 			}
-		case MSG_PING:
-			{
-				client_enqueue(c, MSG_PONG, NULL, 0, 0);
-				break;
-			}
 		case MSG_USER_LIST_REQ:
 			{
 				char payload[MAX_CLIENTS * MAX_USERNAME + 1];
@@ -349,6 +346,31 @@ void client_handle(server_client_t *c)
 
 				payload[0] = (char)count;
 				client_enqueue(c, MSG_USER_LIST, payload, (uint16_t)offset, 0);
+				break;
+			}
+		case MSG_REPLY:
+			{
+				uint64_t reply_id;
+				memcpy(&reply_id, msg->payload, sizeof(uint64_t));
+				char *msg_text = msg->payload + sizeof(uint64_t);
+
+				int ulen = (int)strlen(c->username) + 1;
+				int mlen = (int)strlen(msg_text) + 1;
+
+				char payload[sizeof(uint64_t) + MAX_USERNAME + MAX_PAYLOAD];
+				memcpy(payload, &reply_id, sizeof(uint64_t));
+				memcpy(payload + sizeof(uint64_t), c->username, ulen);
+				memcpy(payload + sizeof(uint64_t) + ulen, msg_text, mlen);
+
+				uint16_t payload_len = (uint16_t)(sizeof(uint64_t) + ulen + mlen);
+				uint64_t msg_id = insert_message_ex_c(SERVER_PORT, MSG_REPLY, payload, payload_len);
+
+				broadcast(c->sock, MSG_REPLY, payload, payload_len, msg_id);
+				break;
+			}
+		case MSG_PING:
+			{
+				client_enqueue(c, MSG_PONG, NULL, 0, 0);
 				break;
 			}
 		default:

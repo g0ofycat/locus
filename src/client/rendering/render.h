@@ -6,6 +6,8 @@
 // -- CONST
 //--============
 
+#define REPLY_GREY "\x1b[38;5;242m"
+
 #define DARK_GREY "\033[90m"
 #define RESET "\033[0m"
 
@@ -30,7 +32,9 @@ void render_input(client_state_t *c);
 /// @param username: Sender username
 /// @param message: Message content
 /// @param id: Message ID from database
-void render_message(client_state_t *c, const char *username, const char *message, const uint64_t id);
+/// @param reply_username: Username of reply
+/// @param reply_text: Username of text
+void render_message(client_state_t *c, const char *username, const char *message, uint64_t id, const char *reply_username, const char *reply_text);
 
 /// @brief Erase input line, print system notice, redraw input line
 /// @param c: Client state

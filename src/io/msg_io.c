@@ -9,6 +9,11 @@
 //--============
 
 /// @brief Write n bytes from src into ring at *tail, advancing tail
+/// @param ring
+/// @param tail
+/// @param ring_size
+/// @param src
+/// @param n
 static void ring_write(uint8_t *ring, int *tail, int ring_size, const void *src, int n)
 {
 	const uint8_t *s = src;

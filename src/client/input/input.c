@@ -8,6 +8,19 @@
 // -- PRIVATE
 //--============
 
+/// @brief Return trimmed arg
+/// @param line
+/// @param prefix
+/// @return const char
+static const char *skip_prefix(const char *line, const char *prefix)
+{
+	size_t len = strlen(prefix);
+	if (strncmp(line, prefix, len) != 0) return NULL;
+	const char *arg = line + len;
+	while (*arg == ' ') arg++;
+	return arg;
+}
+
 /// @brief Command Type Dispatch
 /// @param c
 /// @param cmd
@@ -53,6 +66,20 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 				msg_send(c->sock, MSG_USER_LIST_REQ, NULL, 0, 0, c->key);
 				break;
 			}
+		case CMD_TYPE_REPLY:
+			{
+				if (cmd->msg[0] == '\0') {
+					render_system(c, "usage: /reply <id> <message>");
+					return;
+				}
+
+				char payload[sizeof(uint64_t) + INPUT_BUF_SIZE + 1];
+				memcpy(payload, &cmd->reply_id, sizeof(uint64_t));
+				int mlen = (int)strlen(cmd->msg) + 1;
+				memcpy(payload + sizeof(uint64_t), cmd->msg, mlen);
+				msg_send(c->sock, MSG_REPLY, payload, (uint16_t)(sizeof(uint64_t) + mlen), 0, c->key);
+				break;
+			}
 		case CMD_TYPE_QUIT:
 			{
 				c->running = 0;
@@ -88,33 +115,28 @@ void input_parse(const char *line, cmd_t *out)
 {
 	memset(out, 0, sizeof(cmd_t));
 
-	if (line[0] != '/')
-	{
+	if (line[0] != '/') {
 		out->type = CMD_TYPE_CHAT;
 		return;
 	}
 
-	if (strncmp(line, CMD_RENAME, strlen(CMD_RENAME)) == 0)
-	{
+	if (strcmp(line, CMD_USERS) == 0) { out->type = CMD_TYPE_USERS; return; }
+	if (strcmp(line, CMD_QUIT)  == 0) { out->type = CMD_TYPE_QUIT; return; }
+
+	const char *arg;
+
+	if ((arg = skip_prefix(line, CMD_RENAME))) {
 		out->type = CMD_TYPE_RENAME;
-		const char *arg = line + strlen(CMD_RENAME);
-
-		while (*arg == ' ')
-			arg++;
-
 		snprintf(out->arg, MAX_USERNAME, "%s", arg);
 		return;
 	}
 
-	if (strcmp(line, CMD_USERS) == 0)
-	{
-		out->type = CMD_TYPE_USERS;
-		return;
-	}
-
-	if (strcmp(line, CMD_QUIT) == 0)
-	{
-		out->type = CMD_TYPE_QUIT;
+	if ((arg = skip_prefix(line, CMD_REPLY))) {
+		out->type = CMD_TYPE_REPLY;
+		char *end;
+		out->reply_id = strtoull(arg, &end, 10);
+		while (*end == ' ') end++;
+		snprintf(out->msg, INPUT_BUF_SIZE, "%s", end);
 		return;
 	}
 

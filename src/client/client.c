@@ -11,8 +11,39 @@
 // -- PRIVATE
 //--============
 
+/// @brief Cache message for reply
+/// @param c
+/// @param id
+/// @param username
+/// @param text
+static void cache_message(client_state_t *c, uint64_t id, const char *username, const char *text)
+{
+	cached_msg_t *e = &c->msg_cache[c->msg_cache_next % MSG_CACHE_SIZE];
+	e->id = id;
+
+	snprintf(e->username, MAX_USERNAME, "%s", username);
+	snprintf(e->text, MSG_CACHE_SNIP, "%s", text);
+
+	c->msg_cache_next++;
+}
+
+/// @brief Get from cache
+/// @param c
+/// @param id
+/// @return const cached_msg_t
+static const cached_msg_t *cache_lookup(client_state_t *c, uint64_t id)
+{
+	for (int i = 0; i < MSG_CACHE_SIZE; i++) {
+		if (c->msg_cache[i].id == id)
+			return &c->msg_cache[i];
+	}
+
+	return NULL;
+}
+
 /// @brief Handle client state
 /// @param arg
+/// @return DWORD
 static DWORD WINAPI recv_thread(void *arg)
 {
 	client_state_t *c = (client_state_t *)arg;
@@ -35,7 +66,8 @@ static DWORD WINAPI recv_thread(void *arg)
 				{
 					char *username = msg->payload;
 					char *message = msg->payload + strlen(msg->payload) + 1;
-					render_message(c, username, message, msg->id);
+					cache_message(c, msg->id, username, message);
+					render_message(c, username, message, msg->id, NULL, NULL);
 					break;
 				}
 			case MSG_JOIN:
@@ -68,6 +100,21 @@ static DWORD WINAPI recv_thread(void *arg)
 					uint8_t count = (uint8_t)msg->payload[0];
 					const char *cursor = msg->payload + 1;
 					render_user_list(c, cursor, count);
+					break;
+				}
+			case MSG_REPLY:
+				{
+					uint64_t reply_id;
+					memcpy(&reply_id, msg->payload, sizeof(uint64_t));
+					char *username = msg->payload + sizeof(uint64_t);
+					char *message  = username + strlen(username) + 1;
+
+					cache_message(c, msg->id, username, message);
+
+					const cached_msg_t *ref = cache_lookup(c, reply_id);
+					render_message(c, username, message, msg->id,
+							ref ? ref->username : NULL,
+							ref ? ref->text : NULL);
 					break;
 				}
 			case MSG_PONG:
