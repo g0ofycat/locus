@@ -45,7 +45,7 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 			{
 				if (cmd->arg[0] == '\0')
 				{
-					render_system(c, "usage: /rename <new username>");
+					render_system(c, "usage: /rename <new_name>");
 					return;
 				}
 
@@ -69,7 +69,7 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 		case CMD_TYPE_REPLY:
 			{
 				if (cmd->msg[0] == '\0') {
-					render_system(c, "usage: /reply <id> <message>");
+					render_system(c, "usage: /reply <msg_id> <reply_msg>");
 					return;
 				}
 
