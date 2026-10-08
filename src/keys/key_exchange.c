@@ -6,9 +6,10 @@
 #include <bcrypt.h>
 #else
 #include <openssl/bn.h>
-#include <openssl/ec.h>
-#include <openssl/obj_mac.h>
-#include <openssl/sha.h>
+#include <openssl/core_names.h>
+#include <openssl/crypto.h>
+#include <openssl/evp.h>
+#include <openssl/params.h>
 #include <stdint.h>
 #include <string.h>
 #endif
@@ -109,24 +110,30 @@ static uint32_t read_u32_le(const uint8_t *src) {
 }
 
 int key_exchange(socket_t sock, uint8_t key_out[KEY_SIZE], int is_server) {
-	EC_KEY *keypair = NULL;
-	EC_POINT *peer_point = NULL;
+	EVP_PKEY_CTX *keygen_ctx = NULL;
+	EVP_PKEY_CTX *peer_ctx = NULL;
+	EVP_PKEY_CTX *derive_ctx = NULL;
+	EVP_PKEY *keypair = NULL;
+	EVP_PKEY *peer_key = NULL;
 	BIGNUM *x = NULL;
 	BIGNUM *y = NULL;
 	uint8_t pubkey_blob[ECDH_PUBLIC_BLOB_SIZE] = {0};
 	uint8_t peer_blob[ECDH_PUBLIC_BLOB_SIZE];
-	uint8_t shared[KEY_SIZE];
+	uint8_t peer_public[1 + 2 * KEY_SIZE];
+	uint8_t shared[KEY_SIZE] = {0};
+	size_t shared_len = sizeof(shared);
+	unsigned int digest_len = 0;
+	char group_name[] = "prime256v1";
 	int result = -1;
 
-	keypair = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-	if (!keypair || EC_KEY_generate_key(keypair) != 1)
+	keygen_ctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
+	if (!keygen_ctx || EVP_PKEY_keygen_init(keygen_ctx) <= 0 ||
+		EVP_PKEY_CTX_set_group_name(keygen_ctx, group_name) <= 0 ||
+		EVP_PKEY_generate(keygen_ctx, &keypair) <= 0)
 		goto cleanup;
 
-	const EC_GROUP *group = EC_KEY_get0_group(keypair);
-	const EC_POINT *public_key = EC_KEY_get0_public_key(keypair);
-	x = BN_new();
-	y = BN_new();
-	if (!x || !y || EC_POINT_get_affine_coordinates(group, public_key, x, y, NULL) != 1)
+	if (EVP_PKEY_get_bn_param(keypair, OSSL_PKEY_PARAM_EC_PUB_X, &x) != 1 ||
+		EVP_PKEY_get_bn_param(keypair, OSSL_PKEY_PARAM_EC_PUB_Y, &y) != 1)
 		goto cleanup;
 
 	write_u32_le(pubkey_blob, ECDH_MAGIC);
@@ -147,27 +154,36 @@ int key_exchange(socket_t sock, uint8_t key_out[KEY_SIZE], int is_server) {
 		read_u32_le(peer_blob + sizeof(uint32_t)) != KEY_SIZE)
 		goto cleanup;
 
-	BN_free(x);
-	x = BN_bin2bn(peer_blob + 2 * sizeof(uint32_t), KEY_SIZE, NULL);
-	BN_free(y);
-	y = BN_bin2bn(peer_blob + 2 * sizeof(uint32_t) + KEY_SIZE, KEY_SIZE, NULL);
-	peer_point = EC_POINT_new(group);
-	if (!x || !y || !peer_point ||
-		EC_POINT_set_affine_coordinates(group, peer_point, x, y, NULL) != 1 ||
-		EC_POINT_is_on_curve(group, peer_point, NULL) != 1)
+	peer_public[0] = 0x04;
+	memcpy(peer_public + 1, peer_blob + 2 * sizeof(uint32_t), 2 * KEY_SIZE);
+	OSSL_PARAM peer_params[] = {
+		OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME, group_name, 0),
+		OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY, peer_public, sizeof(peer_public)),
+		OSSL_PARAM_construct_end()
+	};
+	peer_ctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
+	if (!peer_ctx || EVP_PKEY_fromdata_init(peer_ctx) <= 0 ||
+		EVP_PKEY_fromdata(peer_ctx, &peer_key, EVP_PKEY_PUBLIC_KEY, peer_params) <= 0)
 		goto cleanup;
 
-	if (ECDH_compute_key(shared, sizeof(shared), peer_point, keypair, NULL) != KEY_SIZE)
+	derive_ctx = EVP_PKEY_CTX_new(keypair, NULL);
+	if (!derive_ctx || EVP_PKEY_derive_init(derive_ctx) <= 0 ||
+		EVP_PKEY_derive_set_peer(derive_ctx, peer_key) <= 0 ||
+		EVP_PKEY_derive(derive_ctx, shared, &shared_len) <= 0 || shared_len != KEY_SIZE)
 		goto cleanup;
-	if (!SHA256(shared, sizeof(shared), key_out))
+	if (EVP_Digest(shared, shared_len, key_out, &digest_len, EVP_sha256(), NULL) != 1 ||
+		digest_len != KEY_SIZE)
 		goto cleanup;
 	result = 0;
 
 cleanup:
-	EC_POINT_free(peer_point);
+	EVP_PKEY_CTX_free(derive_ctx);
+	EVP_PKEY_CTX_free(peer_ctx);
+	EVP_PKEY_CTX_free(keygen_ctx);
+	EVP_PKEY_free(peer_key);
+	EVP_PKEY_free(keypair);
 	BN_free(x);
 	BN_free(y);
-	EC_KEY_free(keypair);
 	OPENSSL_cleanse(shared, sizeof(shared));
 	return result;
 }
