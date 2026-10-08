@@ -85,48 +85,16 @@ static void time_str(char *out, size_t len) {
 /// @param c
 static void erase_input_line(client_state_t *c) {
 	int width = terminal_width(c);
+
 	size_t current_len = strlen(c->input_buf) + 2;
-	size_t max_len = (c->last_input_len > current_len)
-		? c->last_input_len
-		: current_len;
 
-	int rows = (int)((max_len + width - 1) / width);
+	size_t drawn_len = c->last_input_len > 0 ? c->last_input_len : 2;
+	int rows = (int)((drawn_len + width - 1) / width);
 
-	char cmd[64];
+	for (int i = 0; i < rows - 1; i++)
+		console_write(c, "\x1b[2K\r\x1b[1A", 9);
 
-	if (rows > 1) {
-		snprintf(
-			cmd,
-			sizeof(cmd),
-			"\r\x1b[%dA",
-			rows - 1
-		);
-	} else {
-		snprintf(cmd, sizeof(cmd), "\r");
-	}
-
-	console_write(c, cmd, strlen(cmd));
-
-	for (int i = 0; i < rows; i++) {
-		console_write(c, "\x1b[2K", 4);
-
-		if (i < rows - 1) {
-			console_write(c, "\x1b[1B\r", 5);
-		}
-	}
-
-	if (rows > 1) {
-		snprintf(
-			cmd,
-			sizeof(cmd),
-			"\r\x1b[%dA",
-			rows - 1
-		);
-		console_write(c, cmd, strlen(cmd));
-	} else {
-		console_write(c, "\r", 1);
-	}
-
+	console_write(c, "\x1b[2K\r", 5);
 	c->last_input_len = current_len;
 }
 
