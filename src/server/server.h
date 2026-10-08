@@ -1,7 +1,6 @@
 #pragma once
 
-#include <winsock2.h>
-
+#include "../utils/socket_compat.h"
 #include "../protocol/protocol.h"
 #include "../io/msg_io.h"
 

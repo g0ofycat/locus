@@ -31,23 +31,24 @@ static void erase_input_line(client_state_t *c) {
 	CONSOLE_SCREEN_BUFFER_INFO info;
 	GetConsoleScreenBufferInfo(c->hout, &info);
 
-	int input_len = (int)strlen(c->input_buf) + 2;
-	int width = info.dwSize.X;
-	int rows = (input_len + width - 1) / width;
-	if (rows < 1) rows = 1;
+	int width = info.dwSize.X > 0 ? info.dwSize.X : 80;
+	size_t current_len = strlen(c->input_buf) + 2;
+	size_t max_len = (c->last_input_len > current_len) ? c->last_input_len : current_len;
 
-	COORD pos = {
-		.X = 0,
-		.Y = (SHORT)(info.dwCursorPosition.Y - (rows - 1)),
-	};
-	if (pos.Y < 0) pos.Y = 0;
+	int rows = (int)((max_len + width - 1) / width);
 
-	SetConsoleCursorPosition(c->hout, pos);
+	char cmd[64];
+	if (rows > 1) {
+		snprintf(cmd, sizeof(cmd), "\r\x1b[%dA\x1b[J", rows - 1);
+	} else {
+		snprintf(cmd, sizeof(cmd), "\r\x1b[J");
+	}
 
 	DWORD written;
-	FillConsoleOutputCharacter(c->hout, ' ', width * rows, pos, &written);
-	SetConsoleCursorPosition(c->hout, pos);
-}
+	WriteConsole(c->hout, cmd, (DWORD)strlen(cmd), &written, NULL);
+
+	c->last_input_len = current_len;
+}``
 
 /// @brief Print a line then move to next line
 /// @param c

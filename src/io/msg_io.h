@@ -1,7 +1,5 @@
 #pragma once
 
-#include <winsock2.h>
-
 #include "../encryption/encrypt.h"
 #include "../compression/compress.h"
 #include "../protocol/protocol.h"

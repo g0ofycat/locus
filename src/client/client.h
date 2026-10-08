@@ -1,6 +1,5 @@
 #pragma once
 
-#include <winsock2.h>
 #include <windows.h>
 
 #include "../protocol/protocol.h"

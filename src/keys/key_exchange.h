@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdint.h>
-#include <winsock2.h>
 
 //--============
 // -- CONSTS
