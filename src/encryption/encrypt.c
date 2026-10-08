@@ -1,5 +1,11 @@
+#ifdef _WIN32
 #include <windows.h>
 #include <bcrypt.h>
+#else
+#include <limits.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+#endif
 
 #include "encrypt.h"
 
@@ -9,6 +15,7 @@
 
 /// @brief Get or initialize the AES-GCM algorithm handle (lazy, cached)
 /// @return BCRYPT_ALG_HANDLE on success, NULL on failure
+#ifdef _WIN32
 static BCRYPT_ALG_HANDLE get_alg(void) {
 	static BCRYPT_ALG_HANDLE alg = NULL;
 	if (alg) return alg;
@@ -101,3 +108,76 @@ size_t decrypt_data(const uint8_t *key, const void *src, size_t srcSize, void *d
 
 	return BCRYPT_SUCCESS(st) ? out_len : 0;
 }
+#else
+size_t encrypt_data(const uint8_t *key, const void *src, size_t srcSize, void *dst, size_t dstCapacity) {
+	if (!key || !src || !dst || srcSize > INT_MAX) return 0;
+	if (dstCapacity < srcSize + ENCRYPT_OVERHEAD) return 0;
+
+	uint8_t *iv = dst;
+	uint8_t *tag = iv + AES_IV_SIZE;
+	uint8_t *ciphertext = tag + AES_TAG_SIZE;
+	if (RAND_bytes(iv, AES_IV_SIZE) != 1) return 0;
+
+	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+	if (!ctx) return 0;
+
+	int output_len = 0;
+	int ciphertext_len = 0;
+	size_t result = 0;
+	if (EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL) != 1)
+		goto cleanup;
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, AES_IV_SIZE, NULL) != 1)
+		goto cleanup;
+	if (EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv) != 1)
+		goto cleanup;
+	if (EVP_EncryptUpdate(ctx, ciphertext, &output_len, src, (int)srcSize) != 1)
+		goto cleanup;
+	ciphertext_len = output_len;
+	if (EVP_EncryptFinal_ex(ctx, ciphertext + ciphertext_len, &output_len) != 1)
+		goto cleanup;
+	ciphertext_len += output_len;
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, AES_TAG_SIZE, tag) != 1)
+		goto cleanup;
+	result = (size_t)ciphertext_len + ENCRYPT_OVERHEAD;
+
+cleanup:
+	EVP_CIPHER_CTX_free(ctx);
+	return result;
+}
+
+size_t decrypt_data(const uint8_t *key, const void *src, size_t srcSize, void *dst, size_t dstCapacity) {
+	if (!key || !src || !dst || srcSize <= ENCRYPT_OVERHEAD) return 0;
+
+	const uint8_t *iv = src;
+	const uint8_t *tag = iv + AES_IV_SIZE;
+	const uint8_t *ciphertext = tag + AES_TAG_SIZE;
+	size_t ciphertext_len = srcSize - ENCRYPT_OVERHEAD;
+	if (ciphertext_len > INT_MAX || dstCapacity < ciphertext_len) return 0;
+
+	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+	if (!ctx) return 0;
+
+	int output_len = 0;
+	int plaintext_len = 0;
+	size_t result = 0;
+	if (EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL) != 1)
+		goto cleanup;
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, AES_IV_SIZE, NULL) != 1)
+		goto cleanup;
+	if (EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv) != 1)
+		goto cleanup;
+	if (EVP_DecryptUpdate(ctx, dst, &output_len, ciphertext, (int)ciphertext_len) != 1)
+		goto cleanup;
+	plaintext_len = output_len;
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, AES_TAG_SIZE, (void *)tag) != 1)
+		goto cleanup;
+	if (EVP_DecryptFinal_ex(ctx, (uint8_t *)dst + plaintext_len, &output_len) != 1)
+		goto cleanup;
+	plaintext_len += output_len;
+	result = (size_t)plaintext_len;
+
+cleanup:
+	EVP_CIPHER_CTX_free(ctx);
+	return result;
+}
+#endif

@@ -88,6 +88,14 @@ static inline int socket_close(socket_t sock) {
 #endif
 }
 
+static inline int socket_shutdown(socket_t sock) {
+#ifdef _WIN32
+	return shutdown(sock, SD_BOTH);
+#else
+	return shutdown(sock, SHUT_RDWR);
+#endif
+}
+
 static inline int socket_poll(socket_pollfd_t *fds, unsigned long count, int timeout) {
 #ifdef _WIN32
 	return WSAPoll(fds, count, timeout);

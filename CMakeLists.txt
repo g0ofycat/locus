@@ -5,7 +5,18 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(zstd CONFIG REQUIRED)
+if(WIN32)
+	find_package(zstd CONFIG REQUIRED)
+	set(LOCUS_ZSTD_TARGET zstd::libzstd_static)
+	set(LOCUS_PLATFORM_LIBRARIES ws2_32 bcrypt)
+else()
+	find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+	find_package(Threads REQUIRED)
+	find_package(PkgConfig REQUIRED)
+	pkg_check_modules(ZSTD REQUIRED IMPORTED_TARGET libzstd)
+	set(LOCUS_ZSTD_TARGET PkgConfig::ZSTD)
+	set(LOCUS_PLATFORM_LIBRARIES OpenSSL::Crypto Threads::Threads)
+endif()
 
 add_executable(locus_server
 	src/parser/message_parser.cpp
@@ -37,7 +48,7 @@ target_include_directories(locus_server PRIVATE
 	src/client/rendering
 )
 
-target_link_libraries(locus_server PRIVATE ws2_32 bcrypt zstd::libzstd_static)
+target_link_libraries(locus_server PRIVATE ${LOCUS_PLATFORM_LIBRARIES} ${LOCUS_ZSTD_TARGET})
 
 add_executable(locus_client
 	src/parser/message_parser.cpp
@@ -66,4 +77,4 @@ target_include_directories(locus_client PRIVATE
 	src/client/rendering
 )
 
-target_link_libraries(locus_client PRIVATE ws2_32 bcrypt zstd::libzstd_static)
+target_link_libraries(locus_client PRIVATE ${LOCUS_PLATFORM_LIBRARIES} ${LOCUS_ZSTD_TARGET})

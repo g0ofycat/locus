@@ -2,7 +2,14 @@
 
 #include "../utils/socket_compact.h"
 
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <pthread.h>
+#include <termios.h>
+#endif
+
+#include <stddef.h>
 
 #include "../protocol/protocol.h"
 #include "../io/msg_io.h"
@@ -33,13 +40,21 @@ typedef struct {
 	char input_buf[INPUT_BUF_SIZE]; // current line being typed
 	char session_id[MAX_SESSION_ID];
 	char username[MAX_USERNAME];
-	HANDLE hin;                     // STD_INPUT_HANDLE
-	HANDLE hout;                    // STD_OUTPUT_HANDLE
-	HANDLE render_mutex;            // for rendering chats
+#ifdef _WIN32
+	HANDLE hin;
+	HANDLE hout;
+	HANDLE render_mutex;
+	DWORD original_mode;
+#else
+	pthread_mutex_t render_mutex;
+	struct termios original_mode;
+	int terminal_mode_initialized;
+#endif
 	socket_t sock;
 	int input_len;                  // cursor position / length
+	size_t last_input_len;
 	int msg_cache_next;             // next msg for reply
-	DWORD original_mode;            // restored on exit
+	int render_mutex_initialized;
 	volatile int running;           // 0 = threads should exit
 } client_state_t;
 

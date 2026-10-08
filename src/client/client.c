@@ -43,7 +43,11 @@ static const cached_msg_t *cache_lookup(client_state_t *c, uint64_t id)
 /// @brief Handle client state
 /// @param arg
 /// @return DWORD
+#ifdef _WIN32
 static DWORD WINAPI recv_thread(void *arg)
+#else
+static void *recv_thread(void *arg)
+#endif
 {
 	client_state_t *c = (client_state_t *)arg;
 	uint8_t buf[HEADER_SIZE + MAX_PAYLOAD];
@@ -130,7 +134,11 @@ static DWORD WINAPI recv_thread(void *arg)
 		}
 	}
 
+#ifdef _WIN32
 	return 0;
+#else
+	return NULL;
+#endif
 }
 
 //--============
@@ -148,9 +156,6 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 	memset(c, 0, sizeof(client_state_t));
 	c->sock = SOCKET_INVALID;
 	c->running = 1;
-	c->hin = GetStdHandle(STD_INPUT_HANDLE);
-	c->hout = GetStdHandle(STD_OUTPUT_HANDLE);
-	c->render_mutex = CreateMutex(NULL, FALSE, NULL);
 
 	if (socket_init() != 0)
 	{
@@ -239,9 +244,30 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 /// @param c: Connected client state
 void client_run(client_state_t *c)
 {
+#ifdef _WIN32
+	c->hin = GetStdHandle(STD_INPUT_HANDLE);
+	c->hout = GetStdHandle(STD_OUTPUT_HANDLE);
+	c->render_mutex = CreateMutex(NULL, FALSE, NULL);
+	if (c->render_mutex == NULL)
+	{
+		fprintf(stderr, "[client]: failed to create render mutex\n");
+		c->running = 0;
+		return;
+	}
+#else
+	if (pthread_mutex_init(&c->render_mutex, NULL) != 0)
+	{
+		fprintf(stderr, "[client]: failed to initialize render mutex\n");
+		c->running = 0;
+		return;
+	}
+#endif
+	c->render_mutex_initialized = 1;
+
 	render_init(c);
 	input_init(c);
 
+#ifdef _WIN32
 	HANDLE thread = CreateThread(NULL, 0, recv_thread, c, 0, NULL);
 	if (thread == NULL)
 	{
@@ -255,6 +281,21 @@ void client_run(client_state_t *c)
 	c->running = 0;
 	WaitForSingleObject(thread, 2000);
 	CloseHandle(thread);
+#else
+	pthread_t thread;
+	if (pthread_create(&thread, NULL, recv_thread, c) != 0)
+	{
+		render_system(c, "failed to create recv thread");
+		c->running = 0;
+		render_cleanup(c);
+		return;
+	}
+
+	input_run(c);
+	c->running = 0;
+	socket_shutdown(c->sock);
+	pthread_join(thread, NULL);
+#endif
 	render_cleanup(c);
 }
 
@@ -269,7 +310,15 @@ void client_disconnect(client_state_t *c)
 		c->sock = SOCKET_INVALID;
 	}
 
-	CloseHandle(c->render_mutex);
+	if (c->render_mutex_initialized)
+	{
+#ifdef _WIN32
+		CloseHandle(c->render_mutex);
+#else
+		pthread_mutex_destroy(&c->render_mutex);
+#endif
+		c->render_mutex_initialized = 0;
+	}
 
 	socket_cleanup();
 }

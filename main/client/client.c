@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "../../src/client/client.h"
 
 
@@ -11,7 +12,9 @@
 /// @brief Print usage
 /// @param prog: argv[0]
 static void usage(const char *prog) {
+#ifdef _WIN32
 	SetConsoleOutputCP(65001);
+#endif
 
     printf("%s", LIGHT_PINK
 "                                                  -==.\n"

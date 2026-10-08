@@ -1,8 +1,16 @@
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "input.h"
 #include "../rendering/render.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <errno.h>
+#include <unistd.h>
+#endif
 
 //--============
 // -- PRIVATE
@@ -104,8 +112,19 @@ void input_init(client_state_t *c)
 	memset(c->input_buf, 0, INPUT_BUF_SIZE);
 	c->input_len = 0;
 
+#ifdef _WIN32
 	GetConsoleMode(c->hin, &c->original_mode);
 	SetConsoleMode(c->hin, c->original_mode & ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT));
+#else
+	if (tcgetattr(STDIN_FILENO, &c->original_mode) == 0) {
+		struct termios raw = c->original_mode;
+		raw.c_lflag &= (tcflag_t)~(ICANON | ECHO);
+		raw.c_cc[VMIN] = 1;
+		raw.c_cc[VTIME] = 0;
+		if (tcsetattr(STDIN_FILENO, TCSANOW, &raw) == 0)
+			c->terminal_mode_initialized = 1;
+	}
+#endif
 }
 
 /// @brief Parse a completed input line into a cmd_t
@@ -182,6 +201,7 @@ void input_clear(client_state_t *c)
 /// @param c: Client state
 void input_run(client_state_t *c)
 {
+#ifdef _WIN32
 	INPUT_RECORD rec;
 	DWORD read;
 
@@ -222,4 +242,38 @@ void input_run(client_state_t *c)
 			input_push(c, ch);
 		}
 	}
+#else
+	while (c->running)
+	{
+		char ch;
+		ssize_t count = read(STDIN_FILENO, &ch, 1);
+		if (count < 0 && errno == EINTR)
+			continue;
+		if (count <= 0)
+			break;
+
+		if (ch == '\r' || ch == '\n')
+		{
+			if (c->input_len == 0)
+				continue;
+
+			cmd_t cmd;
+			input_parse(c->input_buf, &cmd);
+			dispatch(c, &cmd);
+			input_clear(c);
+		}
+		else if (ch == 8 || ch == 127)
+		{
+			input_pop(c);
+		}
+		else if (ch == 3 || ch == 27)
+		{
+			c->running = 0;
+		}
+		else if ((unsigned char)ch >= 32 && (unsigned char)ch < 127)
+		{
+			input_push(c, ch);
+		}
+	}
+#endif
 }
