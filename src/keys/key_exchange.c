@@ -128,18 +128,18 @@ int key_exchange(socket_t sock, uint8_t key_out[KEY_SIZE], int is_server) {
 
 	keygen_ctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
 	if (!keygen_ctx || EVP_PKEY_keygen_init(keygen_ctx) <= 0 ||
-		EVP_PKEY_CTX_set_group_name(keygen_ctx, group_name) <= 0 ||
-		EVP_PKEY_generate(keygen_ctx, &keypair) <= 0)
+			EVP_PKEY_CTX_set_group_name(keygen_ctx, group_name) <= 0 ||
+			EVP_PKEY_generate(keygen_ctx, &keypair) <= 0)
 		goto cleanup;
 
 	if (EVP_PKEY_get_bn_param(keypair, OSSL_PKEY_PARAM_EC_PUB_X, &x) != 1 ||
-		EVP_PKEY_get_bn_param(keypair, OSSL_PKEY_PARAM_EC_PUB_Y, &y) != 1)
+			EVP_PKEY_get_bn_param(keypair, OSSL_PKEY_PARAM_EC_PUB_Y, &y) != 1)
 		goto cleanup;
 
 	write_u32_le(pubkey_blob, ECDH_MAGIC);
 	write_u32_le(pubkey_blob + sizeof(uint32_t), KEY_SIZE);
 	if (BN_bn2binpad(x, pubkey_blob + 2 * sizeof(uint32_t), KEY_SIZE) != KEY_SIZE ||
-		BN_bn2binpad(y, pubkey_blob + 2 * sizeof(uint32_t) + KEY_SIZE, KEY_SIZE) != KEY_SIZE)
+			BN_bn2binpad(y, pubkey_blob + 2 * sizeof(uint32_t) + KEY_SIZE, KEY_SIZE) != KEY_SIZE)
 		goto cleanup;
 
 	if (is_server) {
@@ -151,7 +151,7 @@ int key_exchange(socket_t sock, uint8_t key_out[KEY_SIZE], int is_server) {
 	}
 
 	if (read_u32_le(peer_blob) != ECDH_MAGIC ||
-		read_u32_le(peer_blob + sizeof(uint32_t)) != KEY_SIZE)
+			read_u32_le(peer_blob + sizeof(uint32_t)) != KEY_SIZE)
 		goto cleanup;
 
 	peer_public[0] = 0x04;
@@ -163,16 +163,16 @@ int key_exchange(socket_t sock, uint8_t key_out[KEY_SIZE], int is_server) {
 	};
 	peer_ctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
 	if (!peer_ctx || EVP_PKEY_fromdata_init(peer_ctx) <= 0 ||
-		EVP_PKEY_fromdata(peer_ctx, &peer_key, EVP_PKEY_PUBLIC_KEY, peer_params) <= 0)
+			EVP_PKEY_fromdata(peer_ctx, &peer_key, EVP_PKEY_PUBLIC_KEY, peer_params) <= 0)
 		goto cleanup;
 
 	derive_ctx = EVP_PKEY_CTX_new(keypair, NULL);
 	if (!derive_ctx || EVP_PKEY_derive_init(derive_ctx) <= 0 ||
-		EVP_PKEY_derive_set_peer(derive_ctx, peer_key) <= 0 ||
-		EVP_PKEY_derive(derive_ctx, shared, &shared_len) <= 0 || shared_len != KEY_SIZE)
+			EVP_PKEY_derive_set_peer(derive_ctx, peer_key) <= 0 ||
+			EVP_PKEY_derive(derive_ctx, shared, &shared_len) <= 0 || shared_len != KEY_SIZE)
 		goto cleanup;
 	if (EVP_Digest(shared, shared_len, key_out, &digest_len, EVP_sha256(), NULL) != 1 ||
-		digest_len != KEY_SIZE)
+			digest_len != KEY_SIZE)
 		goto cleanup;
 	result = 0;
 

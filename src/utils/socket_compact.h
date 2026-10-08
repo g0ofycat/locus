@@ -61,9 +61,9 @@ static inline socket_t socket_accept(socket_t sock) {
 
 static inline int socket_send(socket_t sock, const void *buf, int len, int flags) {
 #ifndef _WIN32
-	#ifdef MSG_NOSIGNAL
+#ifdef MSG_NOSIGNAL
 	flags |= MSG_NOSIGNAL;
-	#endif
+#endif
 #endif
 	return (int)send(sock, (const char *)buf, len, flags);
 }
