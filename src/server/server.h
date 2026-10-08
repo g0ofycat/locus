@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../utils/socket_compat.h"
+#include "../utils/socket_compact.h"
 #include "../protocol/protocol.h"
 #include "../io/msg_io.h"
 
@@ -24,7 +24,7 @@ typedef struct {
 	uint8_t key[32];                // encryption
 	char session_id[MAX_SESSION_ID];
 	char username[MAX_USERNAME];
-	SOCKET sock;
+	socket_t sock;
 	int joined;	// (0, 1)
 	int send_head;
 	int send_tail;
@@ -38,11 +38,11 @@ typedef struct {
 /// @brief Add a newly accepted socket to the client list
 /// @param sock
 /// @return Index on success, -1 if full
-int client_add(SOCKET sock);
+int client_add(socket_t sock);
 
 /// @brief Remove a client by socket, broadcasts MSG_LEAVE to others
 /// @param sock
-void client_remove(SOCKET sock);
+void client_remove(socket_t sock);
 
 /// @brief Broadcast a framed message to all joined clients except sender
 /// @param sender_sock: Socket to exclude
@@ -50,12 +50,12 @@ void client_remove(SOCKET sock);
 /// @param payload: Data
 /// @param len: Length of payload
 /// @param id: Message ID
-/// @param sender_sock: Pass INVALID_SOCKET to broadcast to everyone
-void broadcast(SOCKET sender_sock, uint8_t type, const void *payload, uint16_t len, uint64_t id);
+/// @param sender_sock: Pass SOCKET_INVALID to broadcast to everyone
+void broadcast(socket_t sender_sock, uint8_t type, const void *payload, uint16_t len, uint64_t id);
 
 /// @brief Read and dispatch one message from a client
 /// @param c: Message
 void client_handle(server_client_t *c);
 
-/// @brief Initialize Winsock, bind, listen, enter poll loop
+/// @brief Initialize sockets, bind, listen, and enter poll loop
 void server_run(void);

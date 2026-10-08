@@ -1,5 +1,4 @@
 #include <string.h>
-#include <WS2tcpip.h>
 
 #include "msg_io.h"
 #include "../utils/net_utils.h"
@@ -36,7 +35,7 @@ static void ring_write(uint8_t *ring, int *tail, int ring_size, const void *src,
 /// @param id: Message ID
 /// @param key: 32-byte AES-256-GCM encryption key
 /// @return MSG_OK on success, MSG_ERR_IO on disconnect or send error
-msg_status_t msg_send(SOCKET sock, uint8_t type, const void *payload, uint16_t len, uint64_t id, const uint8_t *key) {
+msg_status_t msg_send(socket_t sock, uint8_t type, const void *payload, uint16_t len, uint64_t id, const uint8_t *key) {
 	if (len > MAX_PAYLOAD) return MSG_ERR_FRAME;
 	if (len > 0 && payload == NULL) return MSG_ERR_FRAME;
 
@@ -73,7 +72,7 @@ msg_status_t msg_send(SOCKET sock, uint8_t type, const void *payload, uint16_t l
 /// @param bufsz: Size of buf in bytes
 /// @param key: 32-byte AES-256-GCM encryption key
 /// @return MSG_OK on success, MSG_ERR_IO on disconnect, MSG_ERR_FRAME on malformed / oversized payload
-msg_status_t msg_recv(SOCKET sock, msg_t *buf, size_t bufsz, const uint8_t *key) {
+msg_status_t msg_recv(socket_t sock, msg_t *buf, size_t bufsz, const uint8_t *key) {
 	if (bufsz < HEADER_SIZE + MAX_PAYLOAD) return MSG_ERR_FRAME;
 
 	if (read_exact(sock, buf, HEADER_SIZE) != 0) return MSG_ERR_IO;
@@ -170,16 +169,15 @@ msg_status_t msg_enqueue(uint8_t *ring, int *head, int *tail, int *pending,
 /// @param pending: Bytes pending in ring
 /// @param ring_size: Total ring capacity in bytes
 /// @return MSG_OK on full drain, MSG_AGAIN on EWOULDBLOCK, MSG_ERR_IO on disconnect or error
-msg_status_t msg_flush(SOCKET sock, uint8_t *ring, int *head, int *pending, int ring_size)
+msg_status_t msg_flush(socket_t sock, uint8_t *ring, int *head, int *pending, int ring_size)
 {
 	while (*pending > 0) {
 		int contiguous = ring_size - *head;
 		int to_send = *pending < contiguous ? *pending : contiguous;
 
-		int s = send(sock, (const char *)ring + *head, to_send, 0);
+		int s = socket_send(sock, ring + *head, to_send, 0);
 		if (s == SOCKET_ERROR) {
-			int err = WSAGetLastError();
-			return (err == WSAEWOULDBLOCK) ? MSG_AGAIN : MSG_ERR_IO;
+			return socket_would_block(socket_last_error()) ? MSG_AGAIN : MSG_ERR_IO;
 		}
 
 		*head = (*head + s) % ring_size;

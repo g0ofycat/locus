@@ -1,5 +1,3 @@
-# build/ cmake .. -DCMAKE_TOOLCHAIN_FILE=C:/Users/clint/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-mingw-static
-
 cmake_minimum_required(VERSION 3.16)
 project(locus LANGUAGES C CXX)
 

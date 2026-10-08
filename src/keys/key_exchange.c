@@ -13,7 +13,7 @@
 /// @param key_out: 32-byte derived shared secret
 /// @param is_server: 1 if server, 0 if client
 /// @return 0 on success, -1 on error
-int key_exchange(SOCKET sock, uint8_t key_out[KEY_SIZE], int is_server) {
+int key_exchange(socket_t sock, uint8_t key_out[KEY_SIZE], int is_server) {
 	BCRYPT_ALG_HANDLE alg = NULL;
 	BCRYPT_KEY_HANDLE keypair = NULL;
 	BCRYPT_KEY_HANDLE peer_key = NULL;

@@ -1,4 +1,3 @@
-#include <ws2tcpip.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -147,16 +146,15 @@ static DWORD WINAPI recv_thread(void *arg)
 msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, const char *username)
 {
 	memset(c, 0, sizeof(client_state_t));
-	c->sock = INVALID_SOCKET;
+	c->sock = SOCKET_INVALID;
 	c->running = 1;
 	c->hin = GetStdHandle(STD_INPUT_HANDLE);
 	c->hout = GetStdHandle(STD_OUTPUT_HANDLE);
 	c->render_mutex = CreateMutex(NULL, FALSE, NULL);
 
-	WSADATA wsa;
-	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+	if (socket_init() != 0)
 	{
-		fprintf(stderr, "[client]: WSAStartup failed: %d\n", WSAGetLastError());
+		fprintf(stderr, "[client]: socket initialization failed: %d\n", socket_last_error());
 		return MSG_ERR_IO;
 	}
 
@@ -165,7 +163,7 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 	if (getaddrinfo(host, NULL, &hints, &res) != 0)
 	{
 		fprintf(stderr, "[client]: failed to resolve host: %s\n", host);
-		WSACleanup();
+		socket_cleanup();
 		return MSG_ERR_IO;
 	}
 
@@ -173,27 +171,27 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 	addr.sin_port = htons(port);
 	freeaddrinfo(res);
 
-	c->sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (c->sock == INVALID_SOCKET)
+	c->sock = socket_open(AF_INET, SOCK_STREAM, 0);
+	if (c->sock == SOCKET_INVALID)
 	{
-		fprintf(stderr, "[client]: socket failed: %d\n", WSAGetLastError());
-		WSACleanup();
+		fprintf(stderr, "[client]: socket creation failed: %d\n", socket_last_error());
+		socket_cleanup();
 		return MSG_ERR_IO;
 	}
 
-	if (connect(c->sock, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR)
+	if (socket_connect(c->sock, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR)
 	{
-		fprintf(stderr, "[client]: connect failed: %d\n", WSAGetLastError());
-		closesocket(c->sock);
-		WSACleanup();
+		fprintf(stderr, "[client]: connect failed: %d\n", socket_last_error());
+		socket_close(c->sock);
+		socket_cleanup();
 		return MSG_ERR_IO;
 	}
 
 	if (key_exchange(c->sock, c->key, 0) != 0)
 	{
 		fprintf(stderr, "[client]: key exchange failed\n");
-		closesocket(c->sock);
-		WSACleanup();
+		socket_close(c->sock);
+		socket_cleanup();
 		return MSG_ERR_IO;
 	}
 
@@ -201,8 +199,8 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 	if (msg_send(c->sock, MSG_JOIN, username, ulen, 0, c->key) != MSG_OK)
 	{
 		fprintf(stderr, "[client]: MSG_JOIN failed\n");
-		closesocket(c->sock);
-		WSACleanup();
+		socket_close(c->sock);
+		socket_cleanup();
 		return MSG_ERR_IO;
 	}
 
@@ -211,24 +209,24 @@ msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, 
 	if (msg_recv(c->sock, msg, sizeof(buf), c->key) != MSG_OK)
 	{
 		fprintf(stderr, "[client]: handshake failed\n");
-		closesocket(c->sock);
-		WSACleanup();
+		socket_close(c->sock);
+		socket_cleanup();
 		return MSG_ERR_IO;
 	}
 
 	if (msg->type == MSG_ERROR)
 	{
 		fprintf(stderr, "[client]: join rejected: 0x%02X\n", (uint8_t)msg->payload[0]);
-		closesocket(c->sock);
-		WSACleanup();
+		socket_close(c->sock);
+		socket_cleanup();
 		return MSG_ERR_IO;
 	}
 
 	if (msg->type != MSG_WELCOME)
 	{
 		fprintf(stderr, "[client]: unexpected opcode: 0x%02X\n", msg->type);
-		closesocket(c->sock);
-		WSACleanup();
+		socket_close(c->sock);
+		socket_cleanup();
 		return MSG_ERR_IO;
 	}
 
@@ -264,14 +262,14 @@ void client_run(client_state_t *c)
 /// @param c: Client state
 void client_disconnect(client_state_t *c)
 {
-	if (c->sock != INVALID_SOCKET)
+	if (c->sock != SOCKET_INVALID)
 	{
 		msg_send(c->sock, MSG_LEAVE, c->username, (uint16_t)(strlen(c->username) + 1), 0, c->key);
-		closesocket(c->sock);
-		c->sock = INVALID_SOCKET;
+		socket_close(c->sock);
+		c->sock = SOCKET_INVALID;
 	}
 
 	CloseHandle(c->render_mutex);
 
-	WSACleanup();
+	socket_cleanup();
 }

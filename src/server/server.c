@@ -1,4 +1,3 @@
-#include <ws2tcpip.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +12,7 @@
 //--================
 
 static server_client_t clients[MAX_CLIENTS];
-static struct pollfd pfds[MAX_CLIENTS + 1]; // + 1 = listener
+static socket_pollfd_t pfds[MAX_CLIENTS + 1]; // + 1 = listener
 static int nfds = 1;						// pfds[0] = listener
 
 //--============
@@ -53,7 +52,7 @@ static int username_taken(const char *username)
 {
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if (clients[i].sock == INVALID_SOCKET)
+		if (clients[i].sock == SOCKET_INVALID)
 			continue;
 
 		if (strncmp(clients[i].username, username, MAX_USERNAME) == 0)
@@ -66,7 +65,7 @@ static int username_taken(const char *username)
 // @brief Get client based on the socket
 /// @param sock
 /// @return server_client_t
-static server_client_t *client_by_sock(SOCKET sock)
+static server_client_t *client_by_sock(socket_t sock)
 {
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
@@ -144,14 +143,14 @@ static void client_join_callback(const db_entry* entry, void* user_data) {
 /// @brief Add a newly accepted socket to the client list
 /// @param sock
 /// @return Index on success, -1 if full
-int client_add(SOCKET sock)
+int client_add(socket_t sock)
 {
 	int sndbuf = 256 * 1024;
-	setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char *)&sndbuf, sizeof(sndbuf));
+	socket_set_option(sock, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
 
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if (clients[i].sock != INVALID_SOCKET)
+		if (clients[i].sock != SOCKET_INVALID)
 			continue;
 
 		clients[i].sock = sock;
@@ -164,16 +163,15 @@ int client_add(SOCKET sock)
 		memset(clients[i].session_id, 0, MAX_SESSION_ID);
 
 		if (key_exchange(sock, clients[i].key, 1) != 0) {
-			clients[i].sock = INVALID_SOCKET;
-			closesocket(sock);
+			clients[i].sock = SOCKET_INVALID;
+			socket_close(sock);
 			return -1;
 		}
 
-		u_long mode = 1;
-		ioctlsocket(sock, FIONBIO, &mode);
+		set_socket_nonblocking(sock);
 
 		pfds[nfds].fd = sock;
-		pfds[nfds].events = POLLIN;
+		pfds[nfds].events = SOCKET_POLLIN;
 		pfds[nfds].revents = 0;
 		nfds++;
 
@@ -184,7 +182,7 @@ int client_add(SOCKET sock)
 }
 
 /// @brief Remove a client by socket, broadcasts MSG_LEAVE to others
-void client_remove(SOCKET sock)
+void client_remove(socket_t sock)
 {
 	server_client_t *c = client_by_sock(sock);
 	if (c == NULL)
@@ -197,9 +195,9 @@ void client_remove(SOCKET sock)
 		broadcast(sock, MSG_LEAVE, payload, (uint16_t)strlen(payload) + 1, 0);
 	}
 
-	closesocket(sock);
+	socket_close(sock);
 	memset(c, 0, sizeof(server_client_t));
-	c->sock = INVALID_SOCKET;
+	c->sock = SOCKET_INVALID;
 
 	for (int i = 1; i < nfds; i++)
 	{
@@ -218,14 +216,14 @@ void client_remove(SOCKET sock)
 /// @param payload: Data
 /// @param len: Length of payload
 /// @param id: Message ID
-/// @param sender_sock: Pass INVALID_SOCKET to broadcast to everyone
-void broadcast(SOCKET sender_sock, uint8_t type, const void *payload, uint16_t len, uint64_t id)
+/// @param sender_sock: Pass SOCKET_INVALID to broadcast to everyone
+void broadcast(socket_t sender_sock, uint8_t type, const void *payload, uint16_t len, uint64_t id)
 {
 	static const uint8_t bypass_opcodes[] = { 0x01, 0x02, 0x04, 0x07, 0x10 };
 
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if (clients[i].sock == INVALID_SOCKET)
+		if (clients[i].sock == SOCKET_INVALID)
 			continue;
 		if (clients[i].sock == sender_sock && element_in_array(type, bypass_opcodes, sizeof(bypass_opcodes) / sizeof(bypass_opcodes[0])) != 0)
 			continue;
@@ -329,7 +327,7 @@ void client_handle(server_client_t *c)
 
 				for (int i = 0; i < MAX_CLIENTS; i++)
 				{
-					if (clients[i].sock == INVALID_SOCKET) continue;
+					if (clients[i].sock == SOCKET_INVALID) continue;
 					if (!clients[i].joined) continue;
 
 					int ulen = (int)strlen(clients[i].username) + 1;
@@ -381,30 +379,29 @@ void client_handle(server_client_t *c)
 	}
 }
 
-/// @brief Initialize Winsock, bind, listen, enter poll loop
+/// @brief Initialize sockets, bind, listen, and enter the poll loop
 void server_run(void)
 {
-	WSADATA wsa;
-	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+	if (socket_init() != 0)
 	{
-		fprintf(stderr, "[server]: WSAStartup failed: %d\n", WSAGetLastError());
+		fprintf(stderr, "[server]: socket initialization failed: %d\n", socket_last_error());
 		return;
 	}
 
-	SOCKET listener = socket(AF_INET, SOCK_STREAM, 0);
-	if (listener == INVALID_SOCKET)
+	socket_t listener = socket_open(AF_INET, SOCK_STREAM, 0);
+	if (listener == SOCKET_INVALID)
 	{
-		fprintf(stderr, "[server]: socket failed: %d\n", WSAGetLastError());
-		WSACleanup();
+		fprintf(stderr, "[server]: socket creation failed: %d\n", socket_last_error());
+		socket_cleanup();
 		return;
 	}
 
 	int opt = 1;
-	if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) == SOCKET_ERROR)
+	if (socket_set_option(listener, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == SOCKET_ERROR)
 	{
-		fprintf(stderr, "[server]: setsockopt failed: %d\n", WSAGetLastError());
-		closesocket(listener);
-		WSACleanup();
+		fprintf(stderr, "[server]: setsockopt failed: %d\n", socket_last_error());
+		socket_close(listener);
+		socket_cleanup();
 		return;
 	}
 
@@ -414,45 +411,45 @@ void server_run(void)
 		.sin_addr.s_addr = INADDR_ANY,
 	};
 
-	if (bind(listener, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR)
+	if (socket_bind(listener, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR)
 	{
-		fprintf(stderr, "[server]: bind failed: %d\n", WSAGetLastError());
-		closesocket(listener);
-		WSACleanup();
+		fprintf(stderr, "[server]: bind failed: %d\n", socket_last_error());
+		socket_close(listener);
+		socket_cleanup();
 		return;
 	}
 
-	if (listen(listener, SOMAXCONN) == SOCKET_ERROR)
+	if (socket_listen(listener, SOMAXCONN) == SOCKET_ERROR)
 	{
-		fprintf(stderr, "[server]: listen failed: %d\n", WSAGetLastError());
-		closesocket(listener);
-		WSACleanup();
+		fprintf(stderr, "[server]: listen failed: %d\n", socket_last_error());
+		socket_close(listener);
+		socket_cleanup();
 		return;
 	}
 
 	for (int i = 0; i < MAX_CLIENTS; i++)
-		clients[i].sock = INVALID_SOCKET;
+		clients[i].sock = SOCKET_INVALID;
 
 	pfds[0].fd = listener;
-	pfds[0].events = POLLIN;
+	pfds[0].events = SOCKET_POLLIN;
 
 	srand((unsigned int)time(NULL));
 	printf("[server]: listening on port %d\n", SERVER_PORT);
 
 	for (;;)
 	{
-		if (WSAPoll(pfds, nfds, -1) == SOCKET_ERROR)
+		if (socket_poll(pfds, nfds, -1) == SOCKET_ERROR)
 		{
-			fprintf(stderr, "[server]: WSAPoll failed: %d\n", WSAGetLastError());
+			fprintf(stderr, "[server]: socket poll failed: %d\n", socket_last_error());
 			break;
 		}
 
-		if (pfds[0].revents & POLLIN)
+		if (pfds[0].revents & SOCKET_POLLIN)
 		{
-			SOCKET sock = accept(listener, NULL, NULL);
-			if (sock == INVALID_SOCKET)
+			socket_t sock = socket_accept(listener);
+			if (sock == SOCKET_INVALID)
 			{
-				fprintf(stderr, "[server]: accept failed: %d\n", WSAGetLastError());
+				fprintf(stderr, "[server]: accept failed: %d\n", socket_last_error());
 				continue;
 			}
 			if (client_add(sock) == -1)
@@ -461,7 +458,7 @@ void server_run(void)
 
 		for (int i = nfds - 1; i >= 1; --i)
 		{
-			if (pfds[i].revents & (POLLHUP | POLLERR | POLLNVAL))
+			if (pfds[i].revents & (SOCKET_POLLHUP | SOCKET_POLLERR | SOCKET_POLLNVAL))
 			{
 				client_remove(pfds[i].fd);
 				continue;
@@ -470,10 +467,10 @@ void server_run(void)
 			server_client_t *c = client_by_sock(pfds[i].fd);
 			if (!c) continue;
 
-			if (pfds[i].revents & POLLIN)
+			if (pfds[i].revents & SOCKET_POLLIN)
 				client_handle(c);
 
-			if (pfds[i].revents & POLLOUT)
+			if (pfds[i].revents & SOCKET_POLLOUT)
 			{
 				if (client_flush(c) == MSG_ERR_IO)
 				{
@@ -482,10 +479,10 @@ void server_run(void)
 				}
 			}
 
-			pfds[i].events = POLLIN | (client_has_pending(c) ? POLLOUT : 0);
+			pfds[i].events = SOCKET_POLLIN | (client_has_pending(c) ? SOCKET_POLLOUT : 0);
 		}
 	}
 
-	closesocket(listener);
-	WSACleanup();
+	socket_close(listener);
+	socket_cleanup();
 }

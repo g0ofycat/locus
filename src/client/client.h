@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../utils/socket_compact.h"
+
 #include <windows.h>
 
 #include "../protocol/protocol.h"
@@ -34,7 +36,7 @@ typedef struct {
 	HANDLE hin;                     // STD_INPUT_HANDLE
 	HANDLE hout;                    // STD_OUTPUT_HANDLE
 	HANDLE render_mutex;            // for rendering chats
-	SOCKET sock;
+	socket_t sock;
 	int input_len;                  // cursor position / length
 	int msg_cache_next;             // next msg for reply
 	DWORD original_mode;            // restored on exit
