@@ -13,3 +13,5 @@ Terminal based Chat-room
 - **port message history per ip / host**
 
 - **msg replying**
+
+- **uploadable files**

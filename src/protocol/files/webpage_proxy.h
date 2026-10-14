@@ -33,6 +33,10 @@
 /// @return success bool
 int webpage_proxy_init(void);
 
+/// @brief Get the active port the webpage proxy is listening on
+/// @return port number
+int webpage_proxy_get_port(void);
+
 /// @brief Serve the webpage
 /// @param *file_path
 /// @param *id_out

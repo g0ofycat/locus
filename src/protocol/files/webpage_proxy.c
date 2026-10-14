@@ -11,6 +11,7 @@ struct shared_file {
 	bool active;
 };
 
+static int active_port = WEBPAGE_PROXY_PORT;
 static struct mg_mgr mgr;
 static struct shared_file shared_files[MAX_SHARED_FILES];
 static uint32_t next_id;
@@ -150,15 +151,22 @@ int webpage_proxy_init(void) {
 	InitializeCriticalSection(&shared_files_mutex);
 #endif
 
+	mg_log_set(MG_LL_NONE);
 	mg_mgr_init(&mgr);
 
 	char listen_url[64];
-	int n = snprintf(listen_url, sizeof listen_url,
-			"http://0.0.0.0:%d", WEBPAGE_PROXY_PORT);
+	struct mg_connection *c = NULL;
 
-	if (n < 0 ||
-			(size_t)n >= sizeof listen_url ||
-			mg_http_listen(&mgr, listen_url, handle_request, NULL) == NULL)
+	for (int i = 0; i < 1024; i++) { // TODO: idk maybe change this hacky workaround
+		active_port = WEBPAGE_PROXY_PORT + i;
+		snprintf(listen_url, sizeof(listen_url), "http://0.0.0.0:%d", active_port);
+
+		c = mg_http_listen(&mgr, listen_url, handle_request, NULL);
+		if (c != NULL)
+			break;
+	}
+
+	if (c == NULL)
 	{
 		mg_mgr_free(&mgr);
 
@@ -170,8 +178,11 @@ int webpage_proxy_init(void) {
 	}
 
 	initialized = true;
-	mg_log_set(MG_LL_NONE);
 	return 1;
+}
+
+int webpage_proxy_get_port(void) {
+	return active_port;
 }
 
 int serve_webpage(const char *file_path, uint32_t *id_out)
