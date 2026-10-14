@@ -88,6 +88,15 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 				msg_send(c->sock, MSG_REPLY, payload, (uint16_t)(sizeof(uint64_t) + mlen), 0, c->key);
 				break;
 			}
+		case CMD_TYPE_UPLOAD:
+			{
+				if (cmd->arg[0] == '\0') {
+					render_system(c, "usage: /upload <path/to/file>");
+					return;
+				}
+
+				break;
+			}
 		case CMD_TYPE_QUIT:
 			{
 				c->running = 0;
@@ -156,6 +165,11 @@ void input_parse(const char *line, cmd_t *out)
 		out->reply_id = strtoull(arg, &end, 10);
 		while (*end == ' ') end++;
 		snprintf(out->msg, INPUT_BUF_SIZE, "%s", end);
+		return;
+	}
+
+	if ((arg = skip_prefix(line, CMD_UPLOAD))) {
+		out->type = CMD_TYPE_UPLOAD;
 		return;
 	}
 

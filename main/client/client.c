@@ -68,6 +68,7 @@ RESET);
 	fprintf(stderr, GREY "						- rename username: /rename <new_name>\n" RESET);
 	fprintf(stderr, GREY "						- list current clients in port: /users\n" RESET);
 	fprintf(stderr, GREY "						- reply to message: /reply <msg_id> <reply_msg>\n" RESET);
+	fprintf(stderr, GREY "						- create a upload webpage proxy on the server ip for downloading files (expires in 10 minutes): /upload <path/to/file>\n" RESET);
 	fprintf(stderr, GREY "						- leave current chat: /quit\n\n" RESET);
 
 	fprintf(stderr, PINK "					- chat formatting:\n" RESET);

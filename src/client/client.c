@@ -120,6 +120,11 @@ static void *recv_thread(void *arg)
 							ref ? ref->text : NULL);
 					break;
 				}
+			case MSG_UPLOAD:
+				{
+					printf("uploadlink\n");
+					break;
+				}
 			case MSG_PONG:
 				{
 					break;
