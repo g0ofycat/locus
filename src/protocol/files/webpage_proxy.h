@@ -1,9 +1,15 @@
 #pragma once
 
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -32,8 +38,8 @@ int webpage_proxy_init(void);
 /// @return success bool
 int serve_webpage(const char *file_path, uint32_t *id_out);
 
-/// @brief Poll the Proxy for WEBPAGE_PROXY_TTL
+/// @brief Poll the webpage proxy for incoming HTTP requests
 void webpage_proxy_poll();
 
-/// @brief Mem Free Webpage Proxy
+/// @brief Free all resources used by the webpage proxy
 void webpage_proxy_free(void);
