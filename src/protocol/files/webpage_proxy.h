@@ -1,6 +1,5 @@
 #pragma once
 
-
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -12,6 +11,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <sys/stat.h>
 
 #include "mongoose.h"
 
@@ -31,6 +32,10 @@
 /// @brief Initialize the webpage proxy
 /// @return success bool
 int webpage_proxy_init(void);
+
+/// @brief Get the active port the webpage proxy is listening on
+/// @return port number
+int webpage_proxy_get_port(void);
 
 /// @brief Serve the webpage
 /// @param *file_path
