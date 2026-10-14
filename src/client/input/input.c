@@ -118,7 +118,7 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 				int len = snprintf(
 						payload,
 						sizeof(payload),
-						"http://localhost:%d/files?id=%u",
+						"http://localhost:%d/?id=%u",
 						WEBPAGE_PROXY_PORT,
 						file_id
 						);

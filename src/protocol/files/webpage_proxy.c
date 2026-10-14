@@ -125,9 +125,17 @@ static void handle_request(struct mg_connection *c, int ev, void *ev_data) {
 		return;
 	}
 
+	char cwd[1024];
+	static char full_webpage_path[1200] = {0};
+
+	if (full_webpage_path[0] == '\0' && getcwd(cwd, sizeof(cwd)) != NULL) {
+		snprintf(full_webpage_path, sizeof(full_webpage_path), "%s/src/protocol/files/webpage", cwd);
+	}
+
 	struct mg_http_serve_opts opts = {
-		.root_dir = "./webpage"
+		.root_dir = full_webpage_path[0] != '\0' ? full_webpage_path : "/src/protocol/files/webpage"
 	};
+
 	mg_http_serve_dir(c, hm, &opts);
 }
 
@@ -162,12 +170,17 @@ int webpage_proxy_init(void) {
 	}
 
 	initialized = true;
+	mg_log_set(MG_LL_NONE);
 	return 1;
 }
 
 int serve_webpage(const char *file_path, uint32_t *id_out)
 {
 	if (!initialized || file_path == NULL || id_out == NULL)
+		return 0;
+
+	struct stat st;
+	if (stat(file_path, &st) != 0 || !S_ISREG(st.st_mode))
 		return 0;
 
 	shared_files_lock();

@@ -1,6 +1,5 @@
 #pragma once
 
-
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -12,6 +11,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <sys/stat.h>
 
 #include "mongoose.h"
 
