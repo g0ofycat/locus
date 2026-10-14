@@ -365,6 +365,11 @@ void client_handle(server_client_t *c)
 				broadcast(c->sock, MSG_REPLY, payload, payload_len, msg_id);
 				break;
 			}
+		case MSG_UPLOAD:
+			{
+				broadcast(c->sock, MSG_UPLOAD, msg->payload, ntohs(msg->len), 0);
+				break;
+			}
 		case MSG_PING:
 			{
 				client_enqueue(c, MSG_PONG, NULL, 0, 0);

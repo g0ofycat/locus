@@ -23,9 +23,18 @@
 static const char *skip_prefix(const char *line, const char *prefix)
 {
 	size_t len = strlen(prefix);
-	if (strncmp(line, prefix, len) != 0) return NULL;
+
+	if (strncmp(line, prefix, len) != 0)
+		return NULL;
+
+	if (line[len] != '\0' && line[len] != ' ')
+		return NULL;
+
 	const char *arg = line + len;
-	while (*arg == ' ') arg++;
+
+	while (*arg == ' ')
+		arg++;
+
 	return arg;
 }
 
@@ -86,6 +95,41 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 				int mlen = (int)strlen(cmd->msg) + 1;
 				memcpy(payload + sizeof(uint64_t), cmd->msg, mlen);
 				msg_send(c->sock, MSG_REPLY, payload, (uint16_t)(sizeof(uint64_t) + mlen), 0, c->key);
+				break;
+			}
+		case CMD_TYPE_UPLOAD:
+			{
+				if (cmd->arg[0] == '\0')
+				{
+					render_system(c, "usage: /upload <path/to/file>");
+					return;
+				}
+
+				uint32_t file_id;
+
+				if (!serve_webpage(cmd->arg, &file_id))
+				{
+					render_system(c, "failed to serve file");
+					return;
+				}
+
+				char payload[256];
+
+				int len = snprintf(
+						payload,
+						sizeof(payload),
+						"http://localhost:%d/files?id=%u",
+						WEBPAGE_PROXY_PORT,
+						file_id
+						);
+
+				if (len < 0 || (size_t)len >= sizeof(payload))
+				{
+					render_system(c, "failed to create file link");
+					return;
+				}
+
+				msg_send(c->sock, MSG_UPLOAD, payload, (uint16_t)(len + 1), 0, c->key);
 				break;
 			}
 		case CMD_TYPE_QUIT:
@@ -156,6 +200,12 @@ void input_parse(const char *line, cmd_t *out)
 		out->reply_id = strtoull(arg, &end, 10);
 		while (*end == ' ') end++;
 		snprintf(out->msg, INPUT_BUF_SIZE, "%s", end);
+		return;
+	}
+
+	if ((arg = skip_prefix(line, CMD_UPLOAD))) {
+		out->type = CMD_TYPE_UPLOAD;
+		snprintf(out->arg, sizeof(out->arg), "%s", arg);
 		return;
 	}
 

@@ -9,6 +9,7 @@
 #define CMD_RENAME "/rename"
 #define CMD_USERS  "/users"
 #define CMD_REPLY  "/reply"
+#define CMD_UPLOAD "/upload"
 #define CMD_QUIT   "/quit"
 
 //--============
@@ -20,6 +21,7 @@ typedef enum {
 	CMD_TYPE_RENAME,  // /rename <new>
 	CMD_TYPE_USERS,   // /users
 	CMD_TYPE_REPLY,   // /reply <id> <msg>
+	CMD_TYPE_UPLOAD,  // /upload <path/to/file>
 	CMD_TYPE_QUIT,    // /quit
 	CMD_TYPE_UNKNOWN
 } cmd_type_t;
