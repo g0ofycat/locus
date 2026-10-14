@@ -130,6 +130,7 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 				}
 
 				msg_send(c->sock, MSG_UPLOAD, payload, (uint16_t)(len + 1), 0, c->key);
+				render_system(c, payload);
 				break;
 			}
 		case CMD_TYPE_QUIT:
