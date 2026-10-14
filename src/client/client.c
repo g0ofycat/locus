@@ -40,6 +40,27 @@ static const cached_msg_t *cache_lookup(client_state_t *c, uint64_t id)
 	return NULL;
 }
 
+/// @brief Poll webpage proxy while the client is running
+/// @param arg
+/// @return DWORD
+#ifdef _WIN32
+static DWORD WINAPI proxy_thread(void *arg)
+#else
+static void *proxy_thread(void *arg)
+#endif
+{
+	client_state_t *c = (client_state_t *)arg;
+
+	while (c->running)
+		webpage_proxy_poll();
+
+#ifdef _WIN32
+	return 0;
+#else
+	return NULL;
+#endif
+}
+
 /// @brief Handle client state
 /// @param arg
 /// @return DWORD
@@ -122,7 +143,7 @@ static void *recv_thread(void *arg)
 				}
 			case MSG_UPLOAD:
 				{
-					printf("uploadlink\n");
+					render_system(c, msg->payload);
 					break;
 				}
 			case MSG_PONG:
@@ -155,7 +176,7 @@ static void *recv_thread(void *arg)
 /// @param host: Server IP or hostname
 /// @param port: Server port
 /// @param username: Desired username
-/// @return MSG_OK on success, MSG_ERR_IO on failure
+/// @return MSG_OK on success
 msg_status_t client_connect(client_state_t *c, const char *host, uint16_t port, const char *username)
 {
 	memset(c, 0, sizeof(client_state_t));
@@ -273,22 +294,36 @@ void client_run(client_state_t *c)
 	input_init(c);
 
 #ifdef _WIN32
-	HANDLE thread = CreateThread(NULL, 0, recv_thread, c, 0, NULL);
-	if (thread == NULL)
+	HANDLE recv_handle = CreateThread(NULL, 0, recv_thread, c, 0, NULL);
+	if (recv_handle == NULL)
 	{
 		render_system(c, "failed to create recv thread");
 		c->running = 0;
 		return;
 	}
 
+	HANDLE proxy_handle = CreateThread(NULL, 0, proxy_thread, c, 0, NULL);
+	if (proxy_handle == NULL)
+	{
+		render_system(c, "failed to create proxy thread");
+		c->running = 0;
+		WaitForSingleObject(recv_handle, 2000);
+		CloseHandle(recv_handle);
+		return;
+	}
+
 	input_run(c);
 
 	c->running = 0;
-	WaitForSingleObject(thread, 2000);
-	CloseHandle(thread);
+	WaitForSingleObject(recv_handle, 2000);
+	WaitForSingleObject(proxy_handle, 2000);
+	CloseHandle(recv_handle);
+	CloseHandle(proxy_handle);
 #else
-	pthread_t thread;
-	if (pthread_create(&thread, NULL, recv_thread, c) != 0)
+	pthread_t recv;
+	pthread_t proxy;
+
+	if (pthread_create(&recv, NULL, recv_thread, c) != 0)
 	{
 		render_system(c, "failed to create recv thread");
 		c->running = 0;
@@ -296,11 +331,25 @@ void client_run(client_state_t *c)
 		return;
 	}
 
+	if (pthread_create(&proxy, NULL, proxy_thread, c) != 0)
+	{
+		render_system(c, "failed to create proxy thread");
+		c->running = 0;
+		socket_shutdown(c->sock);
+		pthread_join(recv, NULL);
+		render_cleanup(c);
+		return;
+	}
+
 	input_run(c);
+
 	c->running = 0;
 	socket_shutdown(c->sock);
-	pthread_join(thread, NULL);
+
+	pthread_join(recv, NULL);
+	pthread_join(proxy, NULL);
 #endif
+
 	render_cleanup(c);
 }
 

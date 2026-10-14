@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "../../src/client/client.h"
-
+#include "../../src/protocol/files/webpage_proxy.h"
 
 #define PINK "\033[95m"
 #define LIGHT_PINK "\x1b[38;5;225m"
@@ -68,7 +68,7 @@ RESET);
 	fprintf(stderr, GREY "						- rename username: /rename <new_name>\n" RESET);
 	fprintf(stderr, GREY "						- list current clients in port: /users\n" RESET);
 	fprintf(stderr, GREY "						- reply to message: /reply <msg_id> <reply_msg>\n" RESET);
-	fprintf(stderr, GREY "						- create a upload webpage proxy on the server ip for downloading files (expires in 10 minutes): /upload <path/to/file>\n" RESET);
+	fprintf(stderr, GREY "						- share a file with a temporary download link (expires in 10 minutes): /upload <path/to/file>\n" RESET);
 	fprintf(stderr, GREY "						- leave current chat: /quit\n\n" RESET);
 
 	fprintf(stderr, PINK "					- chat formatting:\n" RESET);
@@ -87,18 +87,37 @@ int main(int argc, char **argv) {
 
 	const char *host = argv[1];
 	const char *username = argv[2];
-	uint16_t port = argc > 3 ? (uint16_t)atoi(argv[3]) : SERVER_DEFAULT_PORT;
+	uint16_t port = SERVER_DEFAULT_PORT;
 
-	if (port == 0) {
-		fprintf(stderr, "[client]: invalid port: %s\n", argv[3]);
-		return 1;
+	if (argc > 3)
+	{
+		char *end;
+		long parsed = strtol(argv[3], &end, 10);
+
+		if (*end != '\0' || parsed < 1 || parsed > 65535)
+		{
+			fprintf(stderr, "[client]: invalid port: %s\n", argv[3]);
+			return 1;
+		}
+
+		port = (uint16_t)parsed;
 	}
 
 	client_state_t c;
 	if (client_connect(&c, host, port, username) != MSG_OK)
 		return 1;
 
+	if (!webpage_proxy_init())
+	{
+		fprintf(stderr, "[client]: failed to initialize webpage proxy\n");
+		client_disconnect(&c);
+		return 1;
+	}
+
 	client_run(&c);
+
+	webpage_proxy_free();
 	client_disconnect(&c);
+
 	return 0;
 }

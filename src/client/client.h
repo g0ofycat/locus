@@ -12,6 +12,7 @@
 #include <stddef.h>
 
 #include "../protocol/protocol.h"
+#include "../protocol/files/webpage_proxy.h"
 #include "../io/msg_io.h"
 
 //--============
