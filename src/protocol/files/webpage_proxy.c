@@ -108,8 +108,19 @@ static void handle_request(struct mg_connection *c, int ev, void *ev_data) {
 
 			if (strcmp(id_text, expected_id) == 0)
 			{
+				const char *filename = strrchr(file->path, '/');
+				if (!filename) {
+					filename = strrchr(file->path, '\\');
+				}
+				filename = filename ? filename + 1 : file->path;
+
+				char header_buf[512];
+				snprintf(header_buf, sizeof(header_buf),
+						"Content-Disposition: attachment; filename=\"%s\"\r\n",
+						filename);
+
 				struct mg_http_serve_opts opts = {
-					.extra_headers = "Content-Disposition: attachment\r\n"
+					.extra_headers = header_buf
 				};
 
 				mg_http_serve_file(c, hm, file->path, &opts);
