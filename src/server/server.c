@@ -4,7 +4,6 @@
 #include <time.h>
 
 #include "server.h"
-// #include "db/msg_db.hpp"
 #include "../keys/key_exchange.h"
 
 //--================
@@ -13,9 +12,8 @@
 
 static server_client_t clients[MAX_CLIENTS];
 static socket_pollfd_t pfds[MAX_CLIENTS + 1]; // + 1 = listener
-static int nfds = 1;						// pfds[0] = listener
-
-static int tmp_msg_id = 0; // TODO: find good way to make db msgs encrypted or js leave it like this bc having all unenc. port msgs in a hashmap thats in memory and reading isnt tuff opsec
+static int nfds = 1;						  // pfds[0] = listener
+static int msg_id = 0;
 
 //--============
 // -- PRIVATE
@@ -129,16 +127,6 @@ static msg_status_t client_enqueue(server_client_t *c, uint8_t type, const void 
 
 	return MSG_OK;
 }
-
-/*
-/// @brief Render all messages from the current port database
-/// @param entry
-/// @param user_data
-static void client_join_callback(const db_entry* entry, void* user_data) {
-	server_client_t *c = user_data;
-	client_enqueue(c, entry->type, entry->payload, entry->payload_len, entry->id);
-}
-*/
 
 //--============
 // -- PUBLIC
@@ -278,7 +266,6 @@ void client_handle(server_client_t *c)
 
 				msg_send(c->sock, MSG_WELCOME, c->session_id, (uint16_t)strlen(c->session_id) + 1, 0, c->key);
 				broadcast(c->sock, MSG_JOIN, c->username, (uint16_t)strlen(c->username) + 1, 0);
-				// for_each_message_c(SERVER_PORT, client_join_callback, c);
 				break;
 			}
 		case MSG_CHAT:
@@ -292,7 +279,7 @@ void client_handle(server_client_t *c)
 				memcpy(payload + ulen, msg_text, mlen);
 
 				uint16_t payload_len = (uint16_t)(ulen + mlen);
-				uint64_t msg_id = tmp_msg_id++;
+				uint64_t msg_id = msg_id++;
 
 				broadcast(c->sock, MSG_CHAT, payload, payload_len, msg_id);
 				break;
@@ -364,7 +351,7 @@ void client_handle(server_client_t *c)
 				memcpy(payload + sizeof(uint64_t) + ulen, msg_text, mlen);
 
 				uint16_t payload_len = (uint16_t)(sizeof(uint64_t) + ulen + mlen);
-				uint64_t msg_id = tmp_msg_id++;
+				uint64_t msg_id = msg_id++;
 
 				broadcast(c->sock, MSG_REPLY, payload, payload_len, msg_id);
 				break;

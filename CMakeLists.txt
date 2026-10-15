@@ -32,7 +32,6 @@ add_executable(locus_server
 	main/server/server.c
 	src/io/msg_io.c
 	src/server/server.c
-	src/server/db/msg_db.cpp
 
 	src/client/rendering/render.c
 
