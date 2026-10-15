@@ -4,7 +4,7 @@
 #include <time.h>
 
 #include "server.h"
-#include "db/msg_db.hpp"
+// #include "db/msg_db.hpp"
 #include "../keys/key_exchange.h"
 
 //--================
