@@ -170,6 +170,8 @@ int client_add(socket_t sock)
 		return i;
 	}
 
+	socket_close(sock);
+
 	return -1;
 }
 

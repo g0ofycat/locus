@@ -59,6 +59,24 @@ static int terminal_width(client_state_t *c) {
 	return 80;
 }
 
+static void sanitize_terminal_text(char *dst, size_t dst_size, const char *src)
+{
+	size_t j = 0;
+	if (dst_size == 0)
+		return;
+	if (!src) {
+		dst[0] = '\0';
+		return;
+	}
+	for (size_t i = 0; src[i] != '\0' && j + 1 < dst_size; i++) {
+		unsigned char ch = (unsigned char)src[i];
+		if (ch < 0x20 || ch == 0x7F)
+			continue;
+		dst[j++] = (char)ch;
+	}
+	dst[j] = '\0';
+}
+
 /// @brief Get current time as [HH:MM] string
 /// @param out
 /// @param len
@@ -179,20 +197,30 @@ void render_input(client_state_t *c) {
 /// @param reply_text: Username of text
 void render_message(client_state_t *c, const char *username, const char *message, uint64_t id, const char *reply_username, const char *reply_text)
 {
+	char safe_user[MAX_USERNAME];
+	char safe_reply_user[MAX_USERNAME];
+	char safe_reply_text[MSG_CACHE_SNIP];
+	char safe_raw[MAX_PAYLOAD];
+
+	sanitize_terminal_text(safe_user, sizeof(safe_user), username);
+	sanitize_terminal_text(safe_raw, sizeof(safe_raw), message);
+
 	render_lock(c);
 	erase_input_line(c);
 
 	if (reply_username && reply_text) {
-		char quote[MAX_USERNAME + MSG_CACHE_SNIP + 16];
-		snprintf(quote, sizeof(quote), REPLY_GREY "> \"%s: %s\"" RESET, reply_username, reply_text);
+		sanitize_terminal_text(safe_reply_user, sizeof(safe_reply_user), reply_username);
+		sanitize_terminal_text(safe_reply_text, sizeof(safe_reply_text), reply_text);
+		char quote[MAX_USERNAME + MSG_CACHE_SNIP + 64];
+		snprintf(quote, sizeof(quote), REPLY_GREY "> \"%s: %s\"" RESET, safe_reply_user, safe_reply_text);
 		print_line(c, quote);
 	}
 
-	char *parsed_msg = parse_message_c(message);
+	char *parsed_msg = parse_message_c(safe_raw);
 	char ts[16], line[MAX_USERNAME + MAX_PAYLOAD + 128];
 	time_str(ts, sizeof(ts));
 	snprintf(line, sizeof(line), "%s %s: %s" DARK_GREY " { id: %" PRIu64 " }" RESET,
-			ts, username, parsed_msg, id);
+			ts, safe_user, parsed_msg ? parsed_msg : "[sanitized]", id);
 	print_line(c, line);
 
 	render_input_unlocked(c);
@@ -204,15 +232,17 @@ void render_message(client_state_t *c, const char *username, const char *message
 /// @param c: Client state
 /// @param text: Notice text (join, leave, rename)
 void render_system(client_state_t *c, const char *text) {
-	render_lock(c);
+	char safe_text[MAX_PAYLOAD];
+	sanitize_terminal_text(safe_text, sizeof(safe_text), text);
 
+	render_lock(c);
 	erase_input_line(c);
 
 	char ts[16];
 	char line[MAX_PAYLOAD + 32];
 
 	time_str(ts, sizeof(ts));
-	snprintf(line, sizeof(line), "%s * %s", ts, text);
+	snprintf(line, sizeof(line), "%s * %s", ts, safe_text);
 	print_line(c, line);
 
 	render_input_unlocked(c);
@@ -238,8 +268,10 @@ void render_user_list(client_state_t *c, const char *users, uint8_t count) {
 
 	const char *cursor = users;
 	for (uint8_t i = 0; i < count; i++) {
+		char safe_name[MAX_USERNAME];
+		sanitize_terminal_text(safe_name, sizeof(safe_name), cursor);
 		char line[MAX_USERNAME + 8];
-		snprintf(line, sizeof(line), "    %s", cursor);
+		snprintf(line, sizeof(line), "    %s", safe_name);
 		print_line(c, line);
 		cursor += strlen(cursor) + 1;
 	}

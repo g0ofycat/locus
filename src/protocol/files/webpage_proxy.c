@@ -75,6 +75,25 @@ static uint32_t allocate_id(void) {
 	}
 }
 
+static void sanitize_content_disposition_filename(char *dst, size_t dst_size, const char *src)
+{
+	size_t j = 0;
+	if (dst_size == 0)
+		return;
+	for (size_t i = 0; src[i] != '\0' && j + 1 < dst_size; i++) {
+		unsigned char ch = (unsigned char)src[i];
+		if (ch < 0x20 || ch == 0x7F || ch == '"' || ch == '\\')
+			continue;
+		dst[j++] = (char)ch;
+	}
+	if (j == 0) {
+		const char *fallback = "sanitized_file";
+		while (*fallback && j + 1 < dst_size)
+			dst[j++] = *fallback++;
+	}
+	dst[j] = '\0';
+}
+
 static void handle_request(struct mg_connection *c, int ev, void *ev_data) {
 	if (ev != MG_EV_HTTP_MSG) return;
 
@@ -114,10 +133,13 @@ static void handle_request(struct mg_connection *c, int ev, void *ev_data) {
 				}
 				filename = filename ? filename + 1 : file->path;
 
+				char safe_name[256];
+				sanitize_content_disposition_filename(safe_name, sizeof(safe_name), filename);
+
 				char header_buf[512];
 				snprintf(header_buf, sizeof(header_buf),
 						"Content-Disposition: attachment; filename=\"%s\"\r\n",
-						filename);
+						safe_name);
 
 				struct mg_http_serve_opts opts = {
 					.extra_headers = header_buf
@@ -168,7 +190,7 @@ int webpage_proxy_init(void) {
 	char listen_url[64];
 	struct mg_connection *c = NULL;
 
-	for (int i = 0; i < 1024; i++) { // TODO: idk maybe change this hacky workaround
+	for (int i = 0; i < 1024; i++) {
 		active_port = WEBPAGE_PROXY_PORT + i;
 		snprintf(listen_url, sizeof(listen_url), "http://0.0.0.0:%d", active_port);
 

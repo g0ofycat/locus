@@ -315,6 +315,7 @@ void client_run(client_state_t *c)
 	input_run(c);
 
 	c->running = 0;
+	socket_shutdown(c->sock);
 	WaitForSingleObject(recv_handle, 2000);
 	WaitForSingleObject(proxy_handle, 2000);
 	CloseHandle(recv_handle);
