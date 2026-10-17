@@ -14,6 +14,7 @@
 #include "../protocol/protocol.h"
 #include "../protocol/files/webpage_proxy.h"
 #include "../io/msg_io.h"
+#include "../utils/net_utils.h"
 
 //--============
 // -- CONSTS

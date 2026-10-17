@@ -74,16 +74,18 @@ msg_status_t msg_send(socket_t sock, uint8_t type, const void *payload, uint16_t
 /// @return MSG_OK on success, MSG_ERR_IO on disconnect, MSG_ERR_FRAME on malformed / oversized payload
 msg_status_t msg_recv(socket_t sock, msg_t *buf, size_t bufsz, const uint8_t *key) {
 	if (bufsz < HEADER_SIZE + MAX_PAYLOAD) return MSG_ERR_FRAME;
-
 	if (read_exact(sock, buf, HEADER_SIZE) != 0) return MSG_ERR_IO;
 
 	uint16_t payload_len = ntohs(buf->len);
 
-	if (payload_len == 0) return MSG_OK;
+	if (payload_len == 0) {
+		memset(buf->payload, 0, 1);
+		return MSG_OK;
+	}
+
 	if (payload_len > MAX_PAYLOAD) return MSG_ERR_FRAME;
 	if (payload_len <= ENCRYPT_OVERHEAD) return MSG_ERR_FRAME;
 	if (payload_len > bufsz - HEADER_SIZE) return MSG_ERR_FRAME;
-
 	if (read_exact(sock, buf->payload, payload_len) != 0) return MSG_ERR_IO;
 
 	uint8_t decrypted[MAX_PAYLOAD];
@@ -95,6 +97,8 @@ msg_status_t msg_recv(socket_t sock, msg_t *buf, size_t bufsz, const uint8_t *ke
 	if (decompressed_len == 0) return MSG_ERR_FRAME;
 
 	memcpy(buf->payload, decompressed, decompressed_len);
+	if (decompressed_len < MAX_PAYLOAD)
+		buf->payload[decompressed_len] = '\0';
 	buf->len = htons((uint16_t)decompressed_len);
 
 	return MSG_OK;

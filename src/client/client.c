@@ -84,34 +84,52 @@ static void *recv_thread(void *arg)
 			break;
 		}
 
+		const size_t plen = ntohs(msg->len);
+
 		switch (msg->type)
 		{
 			case MSG_CHAT:
 				{
-					char *username = msg->payload;
-					char *message = msg->payload + strlen(msg->payload) + 1;
+					const char *username = NULL;
+					const char *message = NULL;
+					size_t used = payload_get_cstr(msg->payload, plen, &username);
+					if (used == 0)
+						break;
+					if (payload_get_cstr(msg->payload + used, plen - used, &message) == 0)
+						break;
 					cache_message(c, msg->id, username, message);
 					render_message(c, username, message, msg->id, NULL, NULL);
 					break;
 				}
 			case MSG_JOIN:
 				{
+					const char *name = NULL;
+					if (payload_get_cstr(msg->payload, plen, &name) == 0)
+						break;
 					char notice[MAX_USERNAME + 16];
-					snprintf(notice, sizeof(notice), "%s joined", msg->payload);
+					snprintf(notice, sizeof(notice), "%s joined", name);
 					render_system(c, notice);
 					break;
 				}
 			case MSG_LEAVE:
 				{
+					const char *name = NULL;
+					if (payload_get_cstr(msg->payload, plen, &name) == 0)
+						break;
 					char notice[MAX_USERNAME + 16];
-					snprintf(notice, sizeof(notice), "%s left", msg->payload);
+					snprintf(notice, sizeof(notice), "%s left", name);
 					render_system(c, notice);
 					break;
 				}
 			case MSG_RENAME:
 				{
-					char *old_name = msg->payload;
-					char *new_name = msg->payload + strlen(msg->payload) + 1;
+					const char *old_name = NULL;
+					const char *new_name = NULL;
+					size_t used = payload_get_cstr(msg->payload, plen, &old_name);
+					if (used == 0)
+						break;
+					if (payload_get_cstr(msg->payload + used, plen - used, &new_name) == 0)
+						break;
 					if (strncmp(old_name, c->username, MAX_USERNAME) == 0)
 						snprintf(c->username, MAX_USERNAME, "%s", new_name);
 					char notice[MAX_USERNAME * 2 + 16];
@@ -121,18 +139,40 @@ static void *recv_thread(void *arg)
 				}
 			case MSG_USER_LIST:
 				{
+					if (plen < 1)
+						break;
 					uint8_t count = (uint8_t)msg->payload[0];
 					const char *cursor = msg->payload + 1;
-					render_user_list(c, cursor, count);
+					size_t remain = plen - 1;
+					const char *scan = cursor;
+					uint8_t valid = 0;
+					for (uint8_t i = 0; i < count; i++) {
+						const char *s = NULL;
+						size_t u = payload_get_cstr(scan, remain, &s);
+						if (u == 0)
+							break;
+						scan += u;
+						remain -= u;
+						valid++;
+					}
+					render_user_list(c, cursor, valid);
 					break;
 				}
 			case MSG_REPLY:
 				{
+					if (plen < sizeof(uint64_t) + 1)
+						break;
 					uint64_t reply_id;
 					memcpy(&reply_id, msg->payload, sizeof(uint64_t));
-					char *username = msg->payload + sizeof(uint64_t);
-					char *message  = username + strlen(username) + 1;
-
+					const char *username = NULL;
+					const char *message = NULL;
+					size_t used = payload_get_cstr(msg->payload + sizeof(uint64_t),
+							plen - sizeof(uint64_t), &username);
+					if (used == 0)
+						break;
+					if (payload_get_cstr(msg->payload + sizeof(uint64_t) + used,
+								plen - sizeof(uint64_t) - used, &message) == 0)
+						break;
 					cache_message(c, msg->id, username, message);
 
 					const cached_msg_t *ref = cache_lookup(c, reply_id);
@@ -143,15 +183,18 @@ static void *recv_thread(void *arg)
 				}
 			case MSG_UPLOAD:
 				{
-					render_system(c, msg->payload);
+					const char *text = NULL;
+					if (payload_get_cstr(msg->payload, plen, &text) == 0)
+						break;
+					render_system(c, text);
 					break;
 				}
 			case MSG_PONG:
-				{
-					break;
-				}
+				break;
 			case MSG_ERROR:
 				{
+					if (plen < 1)
+						break;
 					render_error(c, (uint8_t)msg->payload[0]);
 					break;
 				}

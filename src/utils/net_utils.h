@@ -36,3 +36,21 @@ static int write_exact(socket_t sock, const void *buf, size_t n) {
 
 	return 0;
 }
+
+/// @brief Get string until null terminator
+/// @param *p
+/// @param avail
+/// @param **out
+/// @return bytes consumed
+static size_t payload_get_cstr(const char *p, size_t avail, const char **out)
+{
+	if (avail == 0 || p == NULL)
+		return 0;
+	for (size_t i = 0; i < avail; i++) {
+		if (p[i] == '\0') {
+			*out = p;
+			return i + 1;
+		}
+	}
+	return 0;
+}

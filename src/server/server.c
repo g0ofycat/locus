@@ -241,6 +241,8 @@ void client_handle(server_client_t *c)
 		return;
 	}
 
+	const size_t plen = ntohs(msg->len);
+
 	if (!c->joined && msg->type != MSG_JOIN)
 	{
 		error_code_t err = ERR_NOT_JOINED;
@@ -252,38 +254,49 @@ void client_handle(server_client_t *c)
 	{
 		case MSG_JOIN:
 			{
-				char *username = msg->payload;
-				username[MAX_USERNAME - 1] = '\0';
-
+				const char *username = NULL;
+				if (payload_get_cstr(msg->payload, plen, &username) == 0
+						|| username[0] == '\0'
+						|| strlen(username) >= MAX_USERNAME)
+				{
+					error_code_t err = ERR_USERNAME_INVALID;
+					msg_send(c->sock, MSG_ERROR, &err, sizeof(err), 0, c->key);
+					return;
+				}
 				if (username_taken(username))
 				{
 					error_code_t err = ERR_USERNAME_TAKEN;
 					msg_send(c->sock, MSG_ERROR, &err, sizeof(err), 0, c->key);
 					return;
 				}
-
 				snprintf(c->username, MAX_USERNAME, "%s", username);
 				session_id_generate(c->session_id);
 				c->joined = 1;
-
-				msg_send(c->sock, MSG_WELCOME, c->session_id, (uint16_t)strlen(c->session_id) + 1, 0, c->key);
-				broadcast(c->sock, MSG_JOIN, c->username, (uint16_t)strlen(c->username) + 1, 0);
+				msg_send(c->sock, MSG_WELCOME, c->session_id,
+						(uint16_t)strlen(c->session_id) + 1, 0, c->key);
+				broadcast(c->sock, MSG_JOIN, c->username,
+						(uint16_t)strlen(c->username) + 1, 0);
 				break;
 			}
 		case MSG_CHAT:
 			{
-				char *msg_text = msg->payload + strlen(msg->payload) + 1;
+				const char *wire_user = NULL;
+				const char *msg_text = NULL;
+				size_t used = payload_get_cstr(msg->payload, plen, &wire_user);
+				if (used == 0)
+					break;
+				if (payload_get_cstr(msg->payload + used, plen - used, &msg_text) == 0)
+					break;
+
 				int ulen = (int)strlen(c->username) + 1;
 				int mlen = (int)strlen(msg_text) + 1;
-
 				char payload[MAX_USERNAME + MAX_PAYLOAD];
-				memcpy(payload, c->username, ulen);
-				memcpy(payload + ulen, msg_text, mlen);
-
-				uint16_t payload_len = (uint16_t)(ulen + mlen);
-				uint64_t msg_id = msg_id++;
-
-				broadcast(c->sock, MSG_CHAT, payload, payload_len, msg_id);
+				if ((size_t)ulen + (size_t)mlen > sizeof(payload))
+					break;
+				memcpy(payload, c->username, (size_t)ulen);
+				memcpy(payload + ulen, msg_text, (size_t)mlen);
+				uint64_t mid = msg_id++;
+				broadcast(c->sock, MSG_CHAT, payload, (uint16_t)(ulen + mlen), mid);
 				break;
 			}
 		case MSG_LEAVE:
@@ -293,23 +306,32 @@ void client_handle(server_client_t *c)
 			}
 		case MSG_RENAME:
 			{
-				char *new_name = msg->payload + strlen(msg->payload) + 1;
-				new_name[MAX_USERNAME - 1] = '\0';
-
+				const char *old_ignore = NULL;
+				const char *new_name = NULL;
+				size_t used = payload_get_cstr(msg->payload, plen, &old_ignore);
+				if (used == 0)
+					break;
+				if (payload_get_cstr(msg->payload + used, plen - used, &new_name) == 0
+						|| new_name[0] == '\0'
+						|| strlen(new_name) >= MAX_USERNAME)
+				{
+					error_code_t err = ERR_USERNAME_INVALID;
+					msg_send(c->sock, MSG_ERROR, &err, sizeof(err), 0, c->key);
+					return;
+				}
 				if (username_taken(new_name))
 				{
 					error_code_t err = ERR_USERNAME_TAKEN;
 					msg_send(c->sock, MSG_ERROR, &err, sizeof(err), 0, c->key);
 					return;
 				}
-
 				char payload[MAX_USERNAME * 2];
 				int olen = (int)strlen(c->username) + 1;
-				memcpy(payload, c->username, olen);
+				memcpy(payload, c->username, (size_t)olen);
 				snprintf(payload + olen, MAX_USERNAME, "%s", new_name);
-
 				snprintf(c->username, MAX_USERNAME, "%s", new_name);
-				broadcast(c->sock, MSG_RENAME, payload, (uint16_t)(olen + strlen(new_name) + 1), 0);
+				broadcast(c->sock, MSG_RENAME, payload,
+						(uint16_t)(olen + strlen(new_name) + 1), 0);
 				break;
 			}
 		case MSG_USER_LIST_REQ:
@@ -317,50 +339,51 @@ void client_handle(server_client_t *c)
 				char payload[MAX_CLIENTS * MAX_USERNAME + 1];
 				uint8_t count = 0;
 				int offset = 1;
-
 				for (int i = 0; i < MAX_CLIENTS; i++)
 				{
-					if (clients[i].sock == SOCKET_INVALID) continue;
-					if (!clients[i].joined) continue;
-
+					if (clients[i].sock == SOCKET_INVALID)
+						continue;
+					if (!clients[i].joined)
+						continue;
 					int ulen = (int)strlen(clients[i].username) + 1;
-
-					if (offset + ulen >= sizeof(payload))
+					if (offset + ulen >= (int)sizeof(payload))
 						break;
-
-					memcpy(payload + offset, clients[i].username, ulen);
-
+					memcpy(payload + offset, clients[i].username, (size_t)ulen);
 					offset += ulen;
 					count++;
 				}
-
 				payload[0] = (char)count;
 				client_enqueue(c, MSG_USER_LIST, payload, (uint16_t)offset, 0);
 				break;
 			}
 		case MSG_REPLY:
 			{
+				if (plen < sizeof(uint64_t) + 1)
+					break;
 				uint64_t reply_id;
 				memcpy(&reply_id, msg->payload, sizeof(uint64_t));
-				char *msg_text = msg->payload + sizeof(uint64_t);
+
+				const char *msg_text = NULL;
+				if (payload_get_cstr(msg->payload + sizeof(uint64_t),
+							plen - sizeof(uint64_t), &msg_text) == 0)
+					break;
 
 				int ulen = (int)strlen(c->username) + 1;
 				int mlen = (int)strlen(msg_text) + 1;
-
 				char payload[sizeof(uint64_t) + MAX_USERNAME + MAX_PAYLOAD];
+				if (sizeof(uint64_t) + (size_t)ulen + (size_t)mlen > sizeof(payload))
+					break;
 				memcpy(payload, &reply_id, sizeof(uint64_t));
-				memcpy(payload + sizeof(uint64_t), c->username, ulen);
-				memcpy(payload + sizeof(uint64_t) + ulen, msg_text, mlen);
-
-				uint16_t payload_len = (uint16_t)(sizeof(uint64_t) + ulen + mlen);
-				uint64_t msg_id = msg_id++;
-
-				broadcast(c->sock, MSG_REPLY, payload, payload_len, msg_id);
+				memcpy(payload + sizeof(uint64_t), c->username, (size_t)ulen);
+				memcpy(payload + sizeof(uint64_t) + ulen, msg_text, (size_t)mlen);
+				uint64_t mid = msg_id++;
+				broadcast(c->sock, MSG_REPLY, payload,
+						(uint16_t)(sizeof(uint64_t) + ulen + mlen), mid);
 				break;
 			}
 		case MSG_UPLOAD:
 			{
-				broadcast(c->sock, MSG_UPLOAD, msg->payload, ntohs(msg->len), 0);
+				broadcast(c->sock, MSG_UPLOAD, msg->payload, (uint16_t)plen, 0);
 				break;
 			}
 		case MSG_PING:

@@ -5,6 +5,7 @@
 #include "../encryption/encrypt.h"
 #include "../compression/compress.h"
 #include "../protocol/protocol.h"
+#include "../utils/net_utils.h"
 
 //--============
 // -- STRUCTS
