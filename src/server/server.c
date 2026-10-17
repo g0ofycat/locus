@@ -243,6 +243,11 @@ void client_handle(server_client_t *c)
 
 	const size_t plen = ntohs(msg->len);
 
+	if (plen == 0) {
+		error_code_t err = ERR_BAD_FRAME;
+		client_enqueue(c, MSG_ERROR, &err, sizeof(err), 0);
+	}
+
 	if (!c->joined && msg->type != MSG_JOIN)
 	{
 		error_code_t err = ERR_NOT_JOINED;
