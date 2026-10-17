@@ -10,8 +10,6 @@ Terminal based Chat-room
 
 - **text formatting**
 
-- **port message history per ip / host**
-
 - **msg replying**
 
 - **uploadable files**
