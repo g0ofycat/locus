@@ -35,7 +35,9 @@ static void ring_write(uint8_t *ring, int *tail, int ring_size, const void *src,
 /// @param id: Message ID
 /// @param key: 32-byte AES-256-GCM encryption key
 /// @return MSG_OK on success, MSG_ERR_IO on disconnect or send error
-msg_status_t msg_send(socket_t sock, uint8_t type, const void *payload, uint16_t len, uint64_t id, const uint8_t *key) {
+msg_status_t msg_send(socket_t sock, uint8_t type, const void *payload, uint16_t len,
+		uint64_t id, const uint8_t *key)
+{
 	if (len > MAX_PAYLOAD) return MSG_ERR_FRAME;
 	if (len > 0 && payload == NULL) return MSG_ERR_FRAME;
 
@@ -46,24 +48,28 @@ msg_status_t msg_send(socket_t sock, uint8_t type, const void *payload, uint16_t
 	msg->seq = 0;
 	msg->timestamp = 0;
 
-	if (len == 0) {
-		msg->len = 0;
-		return write_exact(sock, buf, HEADER_SIZE) == 0 ? MSG_OK : MSG_ERR_IO;
-	}
-
 	uint8_t compressed[MAX_PAYLOAD];
 	uint8_t encrypted[MAX_PAYLOAD + ENCRYPT_OVERHEAD];
+	const void *pt = NULL;
+	size_t pt_len = 0;
 
-	size_t compressed_len = compress_data(payload, len, compressed, sizeof(compressed));
-	if (compressed_len == 0) return MSG_ERR_FRAME;
+	if (len > 0) {
+		pt_len = compress_data(payload, len, compressed, sizeof(compressed));
+		if (pt_len == 0) return MSG_ERR_FRAME;
+		pt = compressed;
+	}
 
-	size_t encrypted_len = encrypt_data(key, compressed, compressed_len, encrypted, sizeof(encrypted));
-	if (encrypted_len == 0) return MSG_ERR_FRAME;
-
+	size_t encrypted_len = pt_len + ENCRYPT_OVERHEAD;
+	if (encrypted_len > MAX_PAYLOAD + ENCRYPT_OVERHEAD) return MSG_ERR_FRAME;
 	msg->len = htons((uint16_t)encrypted_len);
-	memcpy(msg->payload, encrypted, encrypted_len);
 
-	return write_exact(sock, buf, HEADER_SIZE + encrypted_len) == 0 ? MSG_OK : MSG_ERR_IO;
+	if (encrypt_data(key, pt, pt_len, encrypted, sizeof(encrypted),
+				buf, HEADER_SIZE) != encrypted_len)
+		return MSG_ERR_FRAME;
+
+	memcpy(msg->payload, encrypted, encrypted_len);
+	return write_exact(sock, buf, HEADER_SIZE + (int)encrypted_len) == 0
+		? MSG_OK : MSG_ERR_IO;
 }
 
 /// @brief Read a complete framed message from a socket into buf
@@ -72,35 +78,40 @@ msg_status_t msg_send(socket_t sock, uint8_t type, const void *payload, uint16_t
 /// @param bufsz: Size of buf in bytes
 /// @param key: 32-byte AES-256-GCM encryption key
 /// @return MSG_OK on success, MSG_ERR_IO on disconnect, MSG_ERR_FRAME on malformed / oversized payload
-msg_status_t msg_recv(socket_t sock, msg_t *buf, size_t bufsz, const uint8_t *key) {
+msg_status_t msg_recv(socket_t sock, msg_t *buf, size_t bufsz, const uint8_t *key)
+{
 	if (bufsz < HEADER_SIZE + MAX_PAYLOAD) return MSG_ERR_FRAME;
 	if (read_exact(sock, buf, HEADER_SIZE) != 0) return MSG_ERR_IO;
 
 	uint16_t payload_len = ntohs(buf->len);
-
-	if (payload_len == 0) {
-		memset(buf->payload, 0, 1);
-		return MSG_OK;
-	}
-
-	if (payload_len > MAX_PAYLOAD) return MSG_ERR_FRAME;
-	if (payload_len <= ENCRYPT_OVERHEAD) return MSG_ERR_FRAME;
+	if (payload_len < ENCRYPT_OVERHEAD) return MSG_ERR_FRAME;
+	if (payload_len > MAX_PAYLOAD + ENCRYPT_OVERHEAD) return MSG_ERR_FRAME;
 	if (payload_len > bufsz - HEADER_SIZE) return MSG_ERR_FRAME;
 	if (read_exact(sock, buf->payload, payload_len) != 0) return MSG_ERR_IO;
 
 	uint8_t decrypted[MAX_PAYLOAD];
-	size_t decrypted_len = decrypt_data(key, buf->payload, payload_len, decrypted, sizeof(decrypted));
-	if (decrypted_len == 0) return MSG_ERR_FRAME;
+	size_t decrypted_len = decrypt_data(key, buf->payload, payload_len,
+			decrypted, sizeof(decrypted),
+			buf, HEADER_SIZE);
+	if (decrypted_len == (size_t)-1)
+		return MSG_ERR_FRAME;
+
+	if (decrypted_len == 0) {
+		memset(buf->payload, 0, 1);
+		buf->len = 0;
+		return MSG_OK;
+	}
 
 	uint8_t decompressed[MAX_PAYLOAD];
-	size_t decompressed_len = decompressed_data(decompressed, sizeof(decompressed), decrypted, decrypted_len);
-	if (decompressed_len == 0) return MSG_ERR_FRAME;
+	size_t decompressed_len = decompressed_data(decompressed, sizeof(decompressed),
+			decrypted, decrypted_len);
+	if (decompressed_len == 0)
+		return MSG_ERR_FRAME;
 
 	memcpy(buf->payload, decompressed, decompressed_len);
 	if (decompressed_len < MAX_PAYLOAD)
 		buf->payload[decompressed_len] = '\0';
 	buf->len = htons((uint16_t)decompressed_len);
-
 	return MSG_OK;
 }
 
@@ -123,46 +134,36 @@ msg_status_t msg_enqueue(uint8_t *ring, int *head, int *tail, int *pending,
 	if (len > MAX_PAYLOAD) return MSG_ERR_FRAME;
 	if (len > 0 && payload == NULL) return MSG_ERR_FRAME;
 
-	if (len == 0) {
-		if (ring_size - *pending < (int)HEADER_SIZE) return MSG_ERR_FULL;
-
-		uint8_t hdr[HEADER_SIZE];
-		msg_t *h = (msg_t *)hdr;
-		h->id = id;
-		h->type = type;
-		h->len = 0;
-		h->seq = 0;
-		h->timestamp = 0;
-		ring_write(ring, tail, ring_size, hdr, (int)HEADER_SIZE);
-		*pending += (int)HEADER_SIZE;
-
-		return MSG_OK;
-	}
-
 	uint8_t compressed[MAX_PAYLOAD];
 	uint8_t encrypted[MAX_PAYLOAD + ENCRYPT_OVERHEAD];
+	const void *pt = NULL;
+	size_t pt_len = 0;
 
-	size_t compressed_len = compress_data(payload, len, compressed, sizeof(compressed));
-	if (compressed_len == 0) return MSG_ERR_FRAME;
+	if (len > 0) {
+		pt_len = compress_data(payload, len, compressed, sizeof(compressed));
+		if (pt_len == 0) return MSG_ERR_FRAME;
+		pt = compressed;
+	}
 
-	size_t encrypted_len = encrypt_data(key, compressed, compressed_len, encrypted, sizeof(encrypted));
-	if (encrypted_len == 0) return MSG_ERR_FRAME;
-
-	if (ring_size - *pending < (int)(HEADER_SIZE + encrypted_len)) return MSG_ERR_FULL;
+	size_t encrypted_len = pt_len + ENCRYPT_OVERHEAD;
+	if (ring_size - *pending < (int)(HEADER_SIZE + encrypted_len))
+		return MSG_ERR_FULL;
 
 	uint8_t hdr[HEADER_SIZE];
 	msg_t *h = (msg_t *)hdr;
-	h->type = type;
 	h->id = id;
+	h->type = type;
 	h->len = htons((uint16_t)encrypted_len);
 	h->seq = 0;
 	h->timestamp = 0;
 
+	if (encrypt_data(key, pt, pt_len, encrypted, sizeof(encrypted),
+				hdr, HEADER_SIZE) != encrypted_len)
+		return MSG_ERR_FRAME;
+
 	ring_write(ring, tail, ring_size, hdr, (int)HEADER_SIZE);
 	ring_write(ring, tail, ring_size, encrypted, (int)encrypted_len);
-
 	*pending += (int)(HEADER_SIZE + encrypted_len);
-
 	return MSG_OK;
 }
 

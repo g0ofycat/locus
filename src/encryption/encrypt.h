@@ -23,8 +23,12 @@
 /// @param srcSize: Size of plaintext
 /// @param dst: Destination buffer (must be srcSize + ENCRYPT_OVERHEAD bytes)
 /// @param dstCapacity: Size of destination buffer
+/// @param aad
+/// @param aad_len
 /// @return size_t: Size of encrypted output (srcSize + ENCRYPT_OVERHEAD), 0 on error
-size_t encrypt_data(const uint8_t *key, const void *src, size_t srcSize, void *dst, size_t dstCapacity);
+size_t encrypt_data(const uint8_t *key, const void *src, size_t srcSize,
+		void *dst, size_t dstCapacity,
+		const void *aad, size_t aad_len);
 
 /// @brief Decrypt data using AES-256-GCM
 /// @param key: 32-byte encryption key
@@ -32,5 +36,9 @@ size_t encrypt_data(const uint8_t *key, const void *src, size_t srcSize, void *d
 /// @param srcSize: Size of encrypted input
 /// @param dst: Destination buffer (must be srcSize - ENCRYPT_OVERHEAD bytes)
 /// @param dstCapacity: Size of destination buffer
+/// @param aad
+/// @param aad_len
 /// @return size_t: Size of decrypted output, 0 on error or auth failure
-size_t decrypt_data(const uint8_t *key, const void *src, size_t srcSize, void *dst, size_t dstCapacity);
+size_t decrypt_data(const uint8_t *key, const void *src, size_t srcSize,
+		void *dst, size_t dstCapacity,
+		const void *aad, size_t aad_len);

@@ -36,6 +36,7 @@ static void key_exchange_set_timeout(socket_t sock, int seconds) {
 //--============
 // -- PUBLIC
 //--============
+
 #ifdef _WIN32
 int key_exchange(socket_t sock, uint8_t key_out[KEY_SIZE], int is_server) {
 	BCRYPT_ALG_HANDLE alg = NULL;
