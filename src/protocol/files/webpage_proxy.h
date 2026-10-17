@@ -2,8 +2,10 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <bcrypt.h>
 #else
 #include <pthread.h>
+#include <openssl/rand.h>
 #endif
 
 #include <stdio.h>
@@ -24,6 +26,7 @@
 #define WEBPAGE_PROXY_PORT           7272
 #define WEBPAGE_PROXY_TTL            600
 #define WEBPAGE_PROXY_POLL_INTERVAL  50
+#define WEBPAGE_NONCE_SIZE           32
 
 //--============
 // -- PUBLIC
@@ -40,8 +43,10 @@ int webpage_proxy_get_port(void);
 /// @brief Serve the webpage
 /// @param *file_path
 /// @param *id_out
+/// @param *nonce_out
+/// @param nonce_out_len
 /// @return success bool
-int serve_webpage(const char *file_path, uint32_t *id_out);
+int serve_webpage(const char *file_path, uint32_t *id_out, char *nonce_out, size_t nonce_out_len);
 
 /// @brief Poll the webpage proxy for incoming HTTP requests
 void webpage_proxy_poll();

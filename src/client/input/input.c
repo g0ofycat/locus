@@ -106,8 +106,8 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 				}
 
 				uint32_t file_id;
-
-				if (!serve_webpage(cmd->arg, &file_id))
+				char nonce[WEBPAGE_NONCE_SIZE + 1];
+				if (!serve_webpage(cmd->arg, &file_id, nonce, sizeof(nonce)))
 				{
 					render_system(c, "failed to serve file");
 					return;
@@ -119,9 +119,10 @@ static void dispatch(client_state_t *c, cmd_t *cmd)
 				int len = snprintf(
 						payload,
 						sizeof(payload),
-						"http://localhost:%d/?id=%u",
+						"http://localhost:%d/?id=%u&nonce=%s",
 						port,
-						file_id
+						file_id,
+						nonce
 						);
 
 				if (len < 0 || (size_t)len >= sizeof(payload))
