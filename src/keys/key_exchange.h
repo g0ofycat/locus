@@ -7,6 +7,7 @@
 // -- CONSTS
 //--============
 
+#define KEY_EXCHANGE_TIMEOUT_SEC 10
 #define KEY_SIZE        32
 #define PUBKEY_SIZE     65          // uncompressed P-256 point
 #define ECDH_MAGIC      0x314B4345  // ECK1

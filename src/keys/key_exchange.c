@@ -15,43 +15,51 @@
 #endif
 
 //--============
-// -- PUBLIC
+// -- PRIVATE
 //--============
 
-/// @brief Generate keypair, send public key, receive peer public key, derive shared secret
-/// @param sock: Connected socket
-/// @param key_out: 32-byte derived shared secret
-/// @param is_server: 1 if server, 0 if client
-/// @return 0 on success, -1 on error
+static void key_exchange_set_timeout(socket_t sock, int seconds) {
+#ifdef _WIN32
+	DWORD ms = (seconds > 0) ? (DWORD)seconds * 1000u : 0;
+	socket_set_option(sock, SOL_SOCKET, SO_RCVTIMEO, &ms, sizeof(ms));
+	socket_set_option(sock, SOL_SOCKET, SO_SNDTIMEO, &ms, sizeof(ms));
+#else
+	struct timeval tv = {
+		.tv_sec = seconds > 0 ? seconds : 0,
+		.tv_usec = 0
+	};
+	socket_set_option(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+	socket_set_option(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+#endif
+}
+
+//--============
+// -- PUBLIC
+//--============
 #ifdef _WIN32
 int key_exchange(socket_t sock, uint8_t key_out[KEY_SIZE], int is_server) {
 	BCRYPT_ALG_HANDLE alg = NULL;
 	BCRYPT_KEY_HANDLE keypair = NULL;
 	BCRYPT_KEY_HANDLE peer_key = NULL;
 	BCRYPT_SECRET_HANDLE secret = NULL;
-
 	int result = -1;
+
+	key_exchange_set_timeout(sock, KEY_EXCHANGE_TIMEOUT_SEC);
 
 	if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&alg, BCRYPT_ECDH_P256_ALGORITHM, NULL, 0)))
 		goto cleanup;
-
 	if (!BCRYPT_SUCCESS(BCryptGenerateKeyPair(alg, &keypair, ECDH_KEY_BITS, 0)))
 		goto cleanup;
-
 	if (!BCRYPT_SUCCESS(BCryptFinalizeKeyPair(keypair, 0)))
 		goto cleanup;
-
 	ULONG pubkey_len = 0;
 	if (!BCRYPT_SUCCESS(BCryptExportKey(keypair, NULL, BCRYPT_ECCPUBLIC_BLOB, NULL, 0, &pubkey_len, 0)))
 		goto cleanup;
-
 	uint8_t pubkey_blob[sizeof(BCRYPT_ECCKEY_BLOB) + PUBKEY_SIZE];
 	if (!BCRYPT_SUCCESS(BCryptExportKey(keypair, NULL, BCRYPT_ECCPUBLIC_BLOB,
 					pubkey_blob, sizeof(pubkey_blob), &pubkey_len, 0)))
 		goto cleanup;
-
 	uint8_t peer_blob[sizeof(BCRYPT_ECCKEY_BLOB) + PUBKEY_SIZE];
-
 	if (is_server) {
 		if (write_exact(sock, pubkey_blob, (int)pubkey_len) != 0) goto cleanup;
 		if (read_exact(sock, peer_blob, (int)pubkey_len) != 0) goto cleanup;
@@ -59,39 +67,32 @@ int key_exchange(socket_t sock, uint8_t key_out[KEY_SIZE], int is_server) {
 		if (read_exact(sock, peer_blob, (int)pubkey_len) != 0) goto cleanup;
 		if (write_exact(sock, pubkey_blob, (int)pubkey_len) != 0) goto cleanup;
 	}
-
 	if (!BCRYPT_SUCCESS(BCryptImportKeyPair(alg, NULL, BCRYPT_ECCPUBLIC_BLOB,
 					&peer_key, peer_blob, pubkey_len, 0)))
 		goto cleanup;
-
 	if (!BCRYPT_SUCCESS(BCryptSecretAgreement(keypair, peer_key, &secret, 0)))
 		goto cleanup;
-
 	BCryptBufferDesc params;
 	BCryptBuffer param_buf;
 	WCHAR hash_alg[] = BCRYPT_SHA256_ALGORITHM;
-
 	param_buf.cbBuffer = sizeof(hash_alg);
 	param_buf.BufferType = KDF_HASH_ALGORITHM;
 	param_buf.pvBuffer = hash_alg;
-
 	params.cBuffers = 1;
 	params.pBuffers = &param_buf;
 	params.ulVersion = BCRYPTBUFFER_VERSION;
-
 	ULONG derived_len = 0;
 	if (!BCRYPT_SUCCESS(BCryptDeriveKey(secret, BCRYPT_KDF_HASH, &params,
 					key_out, KEY_SIZE, &derived_len, 0)))
 		goto cleanup;
-
 	result = 0;
-
 cleanup:
+	if (result == 0)
+		key_exchange_set_timeout(sock, 0);
 	if (secret)   BCryptDestroySecret(secret);
 	if (peer_key) BCryptDestroyKey(peer_key);
 	if (keypair)  BCryptDestroyKey(keypair);
 	if (alg)      BCryptCloseAlgorithmProvider(alg, 0);
-
 	return result;
 }
 #else
@@ -126,22 +127,21 @@ int key_exchange(socket_t sock, uint8_t key_out[KEY_SIZE], int is_server) {
 	char group_name[] = "prime256v1";
 	int result = -1;
 
+	key_exchange_set_timeout(sock, KEY_EXCHANGE_TIMEOUT_SEC);
+
 	keygen_ctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
 	if (!keygen_ctx || EVP_PKEY_keygen_init(keygen_ctx) <= 0 ||
 			EVP_PKEY_CTX_set_group_name(keygen_ctx, group_name) <= 0 ||
 			EVP_PKEY_generate(keygen_ctx, &keypair) <= 0)
 		goto cleanup;
-
 	if (EVP_PKEY_get_bn_param(keypair, OSSL_PKEY_PARAM_EC_PUB_X, &x) != 1 ||
 			EVP_PKEY_get_bn_param(keypair, OSSL_PKEY_PARAM_EC_PUB_Y, &y) != 1)
 		goto cleanup;
-
 	write_u32_le(pubkey_blob, ECDH_MAGIC);
 	write_u32_le(pubkey_blob + sizeof(uint32_t), KEY_SIZE);
 	if (BN_bn2binpad(x, pubkey_blob + 2 * sizeof(uint32_t), KEY_SIZE) != KEY_SIZE ||
 			BN_bn2binpad(y, pubkey_blob + 2 * sizeof(uint32_t) + KEY_SIZE, KEY_SIZE) != KEY_SIZE)
 		goto cleanup;
-
 	if (is_server) {
 		if (write_exact(sock, pubkey_blob, sizeof(pubkey_blob)) != 0) goto cleanup;
 		if (read_exact(sock, peer_blob, sizeof(peer_blob)) != 0) goto cleanup;
@@ -149,11 +149,9 @@ int key_exchange(socket_t sock, uint8_t key_out[KEY_SIZE], int is_server) {
 		if (read_exact(sock, peer_blob, sizeof(peer_blob)) != 0) goto cleanup;
 		if (write_exact(sock, pubkey_blob, sizeof(pubkey_blob)) != 0) goto cleanup;
 	}
-
 	if (read_u32_le(peer_blob) != ECDH_MAGIC ||
 			read_u32_le(peer_blob + sizeof(uint32_t)) != KEY_SIZE)
 		goto cleanup;
-
 	peer_public[0] = 0x04;
 	memcpy(peer_public + 1, peer_blob + 2 * sizeof(uint32_t), 2 * KEY_SIZE);
 	OSSL_PARAM peer_params[] = {
@@ -165,7 +163,6 @@ int key_exchange(socket_t sock, uint8_t key_out[KEY_SIZE], int is_server) {
 	if (!peer_ctx || EVP_PKEY_fromdata_init(peer_ctx) <= 0 ||
 			EVP_PKEY_fromdata(peer_ctx, &peer_key, EVP_PKEY_PUBLIC_KEY, peer_params) <= 0)
 		goto cleanup;
-
 	derive_ctx = EVP_PKEY_CTX_new(keypair, NULL);
 	if (!derive_ctx || EVP_PKEY_derive_init(derive_ctx) <= 0 ||
 			EVP_PKEY_derive_set_peer(derive_ctx, peer_key) <= 0 ||
@@ -175,8 +172,9 @@ int key_exchange(socket_t sock, uint8_t key_out[KEY_SIZE], int is_server) {
 			digest_len != KEY_SIZE)
 		goto cleanup;
 	result = 0;
-
 cleanup:
+	if (result == 0)
+		key_exchange_set_timeout(sock, 0);
 	EVP_PKEY_CTX_free(derive_ctx);
 	EVP_PKEY_CTX_free(peer_ctx);
 	EVP_PKEY_CTX_free(keygen_ctx);
